@@ -1,0 +1,11 @@
+.idea/
+*.iml
+out/
+
+target/
+build/
+*.jar
+!CachesManager-*.jar   # оставим только наш релизный jar
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,126 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+# menu:
+#   title: Заголовок меню, отображаемый вверху инвентаря
+#   Поддерживает цветовые коды (&), HEX-цвета (например, &#FFFF00) и плейсхолдеры:
+#   {name-cache} - отображаемое имя тайника
+#   {current-page} - текущая страница меню
+#   {max-pages} - максимальное количество страниц
+#   title: '&8◆ Настройки тайника {name-cache} (Страница {current-page}/{max-pages})'
+#   size: Размер инвентаря (должен быть кратен 9: 9, 18, 27, 36, 45 или 54)
+#   size: 54
+#   update-interval: Интервал обновления меню в тиках (20 тиков = 1 секунда)
+#   Если 0, обновление отключено. Используется для динамического обновления предметов.
+#   update-interval: 20
+#   max-pages: Максимальное количество страниц для пагинации
+#   max-pages: 5
+#   loot:
+#     slots: Слоты для отображения лута тайника (используется в loot-menu.yml и chance-menu.yml)
+#     Поддерживает отдельные слоты (например, "9") или диапазоны (например, "9-17")
+#     slots:
+#       - 9-17
+#       - 18-26
+
+# items:
+# Уникальный идентификатор предмета (например, select-block). Используйте любые названия, но без пробелов
+# select-block:
+#   material: Материал предмета (используйте названия из Minecraft, например, DIAMOND_SWORD, CHEST, STONE)
+#   Полный список материалов: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html
+#   material: DIAMOND_PICKAXE
+#   slot: Слот, в котором размещается предмет (от 0 до size-1)
+#   Используйте, если предмет должен быть в одном слоте
+#   slot: 12
+#   slots: Список слотов или диапазонов для размещения предмета (например, ["0-8", "10", "12-15"])
+#   Используйте вместо slot, если предмет должен быть в нескольких слотах
+#   slots:
+#     - 0
+#     - 9
+#     - 36-44
+#   display-name: Название предмета, отображаемое в игре
+#   Поддерживает цветовые коды и плейсхолдеры {name-cache}, {unbreakable-status}
+#   display-name: '          &#FFFF00▶ &fВыбрать блок тайника'
+#   (Если в "material" указать "PLAYER_HEAD", то можно указать айди головы, например: value: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmE4YTBmNzQ1N2IyMjZjNjg2ZjVjODUwOWNkZTk4ZTZmMDQ1MzkwNDFmMjM5NDM3OTUzNzllY2NmY2YwNjFhYSJ9fX0=")
+#   lore: Описание предмета (многострочный текст)
+#   Поддерживает цветовые коды и плейсхолдеры {name-cache}, {unbreakable-status}
+#   lore:
+#     - ''
+#     - '   &#FFFF00◆ &fНажмите, чтобы &#FFFF00перейти &fв режим'
+#     - '  &fвыбора блока для тайника &#FFFF00«{name-cache}»'
+#     - ''
+#   update: Нужно ли обновлять предмет при каждом update-interval (true/false)
+#   update: false
+#   enchantments: Список зачарований в формате "НАЗВАНИЕ;УРОВЕНЬ"
+#   Пример: DURABILITY;3, PROTECTION_ENVIRONMENTAL;2
+#   Полный список зачарований: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/enchantments/Enchantment.html
+#   enchantments:
+#     - DURABILITY;1
+#     - DAMAGE_ALL;3
+#   flags: Список флагов предмета для скрытия атрибутов
+#   Полный список: HIDE_ENCHANTS, HIDE_ATTRIBUTES, HIDE_UNBREAKABLE, HIDE_DESTROYS, HIDE_PLACED_ON, HIDE_POTION_EFFECTS, HIDE_DYE
+#   flags:
+#     - HIDE_ENCHANTS
+#     - HIDE_ATTRIBUTES
+#   custom-model-data: Целое число для кастомной модели предмета (если используются ресурспаки)
+#   custom-model-data: 100
+#   amount: Количество предметов в стеке (по умолчанию 1)
+#   amount: 1
+#   click-commands: Список команд, выполняемых при клике по предмету
+#   Поддерживаемые команды:
+#     - [message] <текст> - Отправляет сообщение игроку
+#     - [sound] <звук> <громкость> <тон> - Воспроизводит звук (например, BLOCK_LEVER_CLICK 1 1)
+#     - [title] <текст> <время появления> <время отображения> <время исчезновения> - Показывает заголовок
+#     - [subtitle] <текст> <время появления> <время отображения> <время исчезновения> - Показывает подзаголовок
+#     - [actionbar] <текст> - Показывает сообщение в action bar
+#     - [console-command] <команда> - Выполняет команду от имени консоли
+#     - [player-command] <команда> - Выполняет команду от имени игрока
+#     - [open-menu] <имя_файла> - Открывает другое меню (например, loot-menu.yml)
+#     - [close-menu] - Закрывает текущее меню
+#     - [update-menu] - Обновляет текущее меню
+#     - [selection-mode] - Активирует режим выбора блока для тайника
+#     - [rename-cache] - Активирует режим переименования тайника
+#     - [replace-block-cache] - Активирует режим замены блока тайника
+#     - [change-hologram-text] - Активирует режим изменения текста голограммы
+#     - [toggle-unbreakable] - Переключает неразрушимость тайника
+#     - [next-page] - Переходит на следующую страницу меню
+#     - [previous-page] - Переходит на предыдущую страницу меню
+#     - [change-key-material] - Активирует режим изменения материала ключа
+#     - [change-key-name] - Активирует режим изменения названия ключа
+#     - [change-key-lore] - Активирует режим изменения лора ключа
+#     - [change-key-cmd] - Активирует режим изменения Custom Model Data ключа
+#     - [toggle-key-glow] - Переключает свечение ключа
+#     - [reset-key-to-default] - Сбрасывает ключ к заводским настройкам
+#     - [change-flags] - Активирует режим управления флагами ключа
+#     - [hologram-offset-x] - Активирует режим изменения смещения голограммы по X
+#     - [hologram-offset-y] - Активирует режим изменения смещения голограммы по Y
+#     - [hologram-offset-z] - Активирует режим изменения смещения голограммы по Z
+#     - [next-animation] - Переключает на следующую анимацию
+#     - [last-animation] - Переключает на предыдущую анимацию
+#     - [open-stats] - Открывает меню статистики тайника
+#   click-commands:
+#     - '[message] &aВы нажали на предмет!'
+#     - '[sound] BLOCK_LEVER_CLICK 1 1'
+#     - '[title] &aДействие выполнено 10 70 20'
+#     - '[subtitle] &7Для тайника {name-cache} 10 70 20'
+#     - '[actionbar] &aДействие выполнено для {name-cache}'
+#     - '[console-command] say Действие выполнено для {name-cache}'
+#     - '[player-command] me нажал на предмет в меню'
+#     - '[open-menu] loot-menu.yml'
+#     - '[close-menu]'
+#     - '[update-menu]'
+#     - '[selection-mode]'
+#     - '[rename-cache]'
+#     - '[replace-block-cache]'
+#     - '[change-hologram-text]'
+#     - '[toggle-unbreakable]'
+#     - '[next-page]'
+#     - '[previous-page]'

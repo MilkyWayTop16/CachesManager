@@ -1,0 +1,137 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+menu:
+  title: "&8◆ Настройка голограммы «{name-cache}»"
+  size: 54
+  update-interval: 20
+items:
+  toggle-hologram:
+    material: END_CRYSTAL
+    slot: 21
+    display-name: '      &#FFFF00▶ &fВключить/выключить голограмму'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00переключить &fголограмму  '
+      - '             &fнад тайником &#FFFF00«{name-cache}»  '
+      - ''
+      - '               &#FFFF00◆ &fСтатус: &#FFFF00{hologram-status}'
+      - ''
+    update: true
+    click-commands:
+      - '[toggle-hologram]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  change-hologram-text:
+    material: NAME_TAG
+    slot: 23
+    display-name: '    &#FFFF00▶ &fИзменить текст голограммы'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fтекст  '
+      - '     &fголограммы тайника &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    click-commands:
+      - '[change-hologram-text]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  offset-x:
+    material: RED_DYE
+    slot: 30
+    display-name: '            &#FFFF00▶ &fСмещение по оси X    '
+    lore:
+      - ''
+      - '                &#FFFF00◆ &fТекущее: &#FFFF00{hologram-offset-x}'
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fзначение  '
+      - ''
+    update: true
+    click-commands:
+      - '[hologram-offset-x]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  offset-y:
+    material: LIME_DYE
+    slot: 31
+    display-name: '            &#FFFF00▶ &fСмещение по оси Y    '
+    lore:
+      - ''
+      - '                &#FFFF00◆ &fТекущее: &#FFFF00{hologram-offset-y}'
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fзначение  '
+      - ''
+    update: true
+    click-commands:
+      - '[hologram-offset-y]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  offset-z:
+    material: LIGHT_BLUE_DYE
+    slot: 32
+    display-name: '            &#FFFF00▶ &fСмещение по оси Z    '
+    lore:
+      - ''
+      - '                &#FFFF00◆ &fТекущее: &#FFFF00{hologram-offset-z}'
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fзначение  '
+      - ''
+    update: true
+    click-commands:
+      - '[hologram-offset-z]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  back:
+    material: YELLOW_STAINED_GLASS_PANE
+    slot: 53
+    display-name: "&r "
+    lore:
+      - " &#FFFF00[←] Назад "
+      - " "
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] global-menu.yml'
+  close:
+    material: RED_STAINED_GLASS_PANE
+    slot: 45
+    display-name: "&r "
+    lore:
+      - ' &#FF9B00[✘] Закрыть '
+      - ' '
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[close-menu]'
+  steclo-black:
+    material: BLACK_STAINED_GLASS_PANE
+    slots:
+      - 0
+      - 9
+      - 36
+      - 8
+      - 17
+      - 44
+    display-name: '&r '
+  steclo-gray:
+    material: GRAY_STAINED_GLASS_PANE
+    slots:
+      - 10
+      - 19
+      - 28
+      - 37
+      - 16
+      - 25
+      - 34
+      - 43
+    display-name: '&r '
+  chain:
+    material: CHAIN
+    slots:
+      - 18
+      - 27
+      - 26
+      - 35
+    display-name: '&r '

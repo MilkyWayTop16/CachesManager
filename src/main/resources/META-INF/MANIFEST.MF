@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: 
+Class-Path: DecentHolograms-2.9.9.jar ProtocolLib.jar
+

@@ -1,0 +1,221 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+menu:
+  title: '&8◆ Настройки тайника «{name-cache}»'
+  size: 54
+  update-interval: 20
+  interaction:
+    # Доступно:
+    #
+    # shift-right — Пкм + Шифт
+    # shift-left — Лкм + Шифт
+    # left — Лкм
+    # right — Пкм
+    click-type: shift-right
+    permission: cachesmanager.openmenu.global-menu
+items:
+  select-block:
+    material: DIAMOND_PICKAXE
+    slot: 12
+    display-name: '          &#FFFF00▶ &fВыбрать блок тайника'
+    lore:
+      - ''
+      - '   &#FFFF00◆ &fНажмите, чтобы &#FFFF00перейти &fв режим '
+      - '  &fвыбора блока для тайника &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    flags:
+      - HIDE_ATTRIBUTES
+    click-commands:
+      - '[selection-mode]'
+      - '[close-menu]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  open-loot-menu:
+    material: CHEST
+    slot: 13
+    display-name: '              &#FFFF00▶ &fНастройка лута'
+    lore:
+      - ''
+      - '   &#FFFF00◆ &fНажмите, чтобы &#FFFF00перейти &fв меню с  '
+      - '  &fнастройкой лута в тайнике &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] loot-menu.yml'
+  open-chance-menu:
+    material: ENCHANTED_BOOK
+    slot: 14
+    display-name: '                  &#FFFF00▶ &fНастройка шансов'
+    lore:
+      - ''
+      - '       &#FFFF00◆ &fНажмите, чтобы &#FFFF00перейти &fв меню с  '
+      - '  &fнастройкой шансов лута в тайнике &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] chance-menu.yml'
+  replace-block-cache:
+    material: FLINT
+    slot: 21
+    display-name: '            &#FFFF00▶ &fЗаменить блок тайника'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00заменить &fблок тайника  '
+      - ''
+    update: false
+    click-commands:
+      - '[replace-block-cache]'
+      - '[close-menu]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  toggle-unbreakable:
+    material: IRON_BLOCK
+    slot: 22
+    display-name: '               &#FFFF00▶ &fРазрушение тайника'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00переключить &fвозможность  '
+      - '            &fразрушения тайника &#FFFF00«{name-cache}»'
+      - ''
+      - '             &#FFFF00◆ &fНеразрушимость: &#FFFF00{unbreakable-status}'
+      - ''
+    update: true
+    click-commands:
+      - '[toggle-unbreakable]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  rename-cache:
+    material: NAME_TAG
+    slot: 23
+    display-name: '                 &#FFFF00▶ &fПереименовать тайник'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00переименовать &fтайник &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    click-commands:
+      - '[rename-cache]'
+      - '[close-menu]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  hologram-settings:
+    material: END_CRYSTAL
+    slot: 30
+    display-name: '            &#FFFF00▶ &fНастройка голограммы'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00полностью &fнастроить  '
+      - '         &fголограмму тайника &#FFFF00«{name-cache}»'
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] hologram-menu.yml'
+  change-animation:
+    material: BLAZE_POWDER
+    slot: 31
+    display-name: '       &#FFFF00▶ &fСменить анимацию'
+    lore:
+      - ''
+      - "  &f(&#FFFF00Пкм&f) - &#FFFF00Следующая &fанимация  "
+      - "  &f(&#FFFF00Лкм&f) - &#FFFF00Предыдущая &fанимация  "
+      - ''
+      - '        &#FFFF00◆ &fТекущая: &#FFFF00{animation-name}'
+      - ''
+    update: true
+    left-click-commands:
+      - '[last-animation]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+    right-click-commands:
+      - '[next-animation]'
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+  stats-menu:
+    material: KNOWLEDGE_BOOK
+    slot: 32
+    display-name: '           &#FFFF00▶ &fСтатистика тайника'
+    lore:
+      - ''
+      - '      &#FFFF00◆ &fНажмите, чтобы посмотреть  '
+      - '  &fполную &#FFFF00статистику &fтайника &#FFFF00«{name-cache}»  '
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] stats-menu.yml'
+  key-settings:
+    material: TRIPWIRE_HOOK
+    slot: 39
+    display-name: '           &#FFFF00▶ &fНастройка ключа'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы &#FFFF00настроить &fключ  '
+      - '         &fдля тайника &#FFFF00«{name-cache}»'
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] key-menu.yml'
+  open-history:
+    material: WRITABLE_BOOK
+    slot: 41
+    display-name: '           &#FFFF00▶ &fИстория выпадений'
+    lore:
+      - ''
+      - '  &#FFFF00◆ &fНажмите, чтобы посмотреть  '
+      - '  &fполную историю лута тайника &#FFFF00«{name-cache}»'
+      - ''
+    update: false
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[open-menu] history-menu.yml'
+  steclo-black:
+    material: BLACK_STAINED_GLASS_PANE
+    slots:
+      - 0
+      - 9
+      - 36
+      - 8
+      - 17
+      - 44
+    display-name: '&r '
+  steclo-gray:
+    material: GRAY_STAINED_GLASS_PANE
+    slots:
+      - 10
+      - 19
+      - 28
+      - 37
+      - 16
+      - 25
+      - 34
+      - 43
+    display-name: '&r '
+  chain:
+    material: CHAIN
+    slots:
+      - 18
+      - 27
+      - 26
+      - 35
+    display-name: '&r '
+  close:
+    material: RED_STAINED_GLASS_PANE
+    slots:
+      - 45
+      - 53
+    display-name: '&r '
+    lore:
+      - ' &#FF9B00[✘] Закрыть '
+      - ' '
+    click-commands:
+      - '[sound] BLOCK_LEVER_CLICK 1 1'
+      - '[close-menu]'

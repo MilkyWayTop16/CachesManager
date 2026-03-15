@@ -1,0 +1,31 @@
+name: CachesManager
+version: 1.0
+main: org.gw.cachesmanager.CachesManager
+author: [vkusniy_milkyway]
+api-version: 1.16
+depend: [ProtocolLib, DecentHolograms]
+commands:
+  cachesmanager:
+    aliases: [cm]
+    usage: /<command> [reload/createcache/menu/givekey/deletecache/listcaches/cancel]
+permissions:
+  cachesmanager.createcache:
+    default: op
+  cachesmanager.menu:
+    default: op
+  cachesmanager.givekey:
+    default: op
+  cachesmanager.deletecache:
+    default: op
+  cachesmanager.listcaches:
+    default: op
+  cachesmanager.reload:
+    default: op
+  cachesmanager.cancel:
+    default: op
+  cachesmanager.opencache:
+    default: true
+  cachesmanager.openmenu.global-menu:
+    default: op
+  cachesmanager.admin:
+    default: op

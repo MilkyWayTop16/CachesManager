@@ -1,0 +1,467 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+# Настройки всех параметров
+settings:
+
+  # Настройка таймаута режимов настройки тайника
+  # (Сколько секунд игрок может находиться в режиме настройки тайника)
+  mode-timeout:
+    # Время (в секундах)
+    time: 30
+
+  # Настройка логирования
+  logs-in-console:
+    # Включить ли вывод всех логов плагина в консоль? (true/false)
+    # Рекомендуется включать только при отладке
+    enable: false
+
+  # Система проверки обновлений плагина
+  update-checker:
+    # Включить ли автоматическую проверку обновлений? (true/false)
+    enabled: true
+    # Режим отправки уведомлений об обновлении
+    # Доступные варианты:
+    #   on-start — уведомлять только при запуске сервера (в консоль и админам)
+    #   on-join — уведомлять только при заходе администратора
+    #   periodic — уведомлять каждое определённое кол-во часов (в консоль и админам)
+    #   both — и при старте, и при заходе, и периодически
+    notify-mode: periodic
+    # Интервал периодической проверки только для режимов "periodic" и "both" (в часах)
+    periodic-interval-hours: 6
+
+  # Анонимная статистика bStats
+  bstats:
+    # Включить ли анонимную статистику bStats? (true/false)
+    # (bStats автоматически собирает анонимную статистику об использовании плагина на серверах)
+    enabled: true
+
+  # Настройки истории лута
+  history:
+    # Максимальное количество записей в истории одного тайника
+    # (При превышении старые записи автоматически удаляются)
+    max-entries: 225
+    # Максимальный возраст записи в днях
+    # (Записи старше этого значения автоматически удаляются при загрузке)
+    max-days: 90
+
+# Разные события
+#
+# Доступные действия для любого списка:
+#
+#   [message] <Текст> — Отправляет сообщение игроку
+#   [message-console] <Текст> — Отправляет сообщение только в консоль
+#   [broadcast] <Текст> -— Отправляет объявление всем игрокам на сервере
+#   [sound] <Айди звука> [Громкость] [Питч] — Проигрывает звук игроку
+#   [title] <Текст> [Угасает через] [Остаётся сколько] [Пропадает через] — Показывает заголовок игроку (время в тиках)
+#   [subtitle] <Текст> [Угасает через] [Остаётся сколько] [Пропадает через] — Показывает подзаголовок игроку (время в тиках)
+#   [actionbar] <Текст> — Показывает текст в строке действия игроку
+#   [console-command] <Команда> — Выполняет команду от имени консоли
+#   [player-command] <Команда> —Выполняет команду от имени игрока
+#   [effect] <Айди эффекта> <Длительность в секундах> [Уровень] — Даёт игроку эффект зелья
+#   [teleport] <x> <y> <z> <Мир> — Телепортирует игрока на координаты
+#   [give-item] <Материал> <Количество> — Выдаёт игроку обычный предмет
+#
+actions:
+  errors:
+    no-permission:
+      - "[message] &#FB8808▶ &fНедостаточно &#FB8808прав на использование &fэтой команды!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    console-not-allowed:
+      - "[message] &#FB8808▶ Ошибка! &fТолько &#FB8808игроки &fмогут использовать эту команду!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    invalid-player:
+      - "[message] &#FB8808▶ Стоп! &fИгрок &#FB8808{player} &fне найден!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    invalid-amount:
+      - "[message] &#FB8808▶ Стоп! &fУкажите &#FB8808корректное &fколичество!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    menu-not-found:
+      - "[message] &#FB8808▶ Стоп! &fМеню &#FB8808{menu-file} &fне найдено!"
+      - "[sound] BLOCK_ANVIL_LAND"
+
+  cache:
+    created:
+      - "[message] &#FFFF00▶ &fТайник &#FFFF00«{name-cache}» &fуспешно создан!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    deleted:
+      - "[message] &#FFFF00▶ &fТайник &#FFFF00«{name-cache}» &fуспешно удалён!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    opened:
+      - "[message] &#FFFF00▶ &fТайник &#FFFF00«{name-cache}» &fуспешно открыт!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    not-found:
+      - "[message] &#FB8808▶ Стоп! &fТайник &#FB8808«{name-cache}» &fне найден!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    already-exists:
+      - "[message] &#FB8808▶ Стоп! &fТайник &#FB8808«{name-cache}» &fуже существует!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    in-use:
+      - "[message] &#FB8808▶ &fДанный тайник &#FB8808уже &fоткрывается, подождите..."
+      - "[sound] BLOCK_ANVIL_LAND"
+    no-loot:
+      - "[message] &#FB8808▶ Ошибка! &fВ тайнике &#FB8808«{name-cache}» &fнет предметов для открытия!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    zero-chance:
+      - "[message] &#FB8808▶ Ошибка! &fВ тайнике &#FB8808«{name-cache}» &fвсе предметы имеют &#FB8808нулевой шанс &fвыпадения!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    invalid-coordinates-format:
+      - "[message] &#FB8808▶ Стоп! &fЭто &#FB8808неверный формат &fкоординат и мира!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    invalid-coordinates:
+      - "[message] &#FB8808▶ Стоп! &fКоординаты &#FB8808должны быть &fчислами!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    invalid-world:
+      - "[message] &#FB8808▶ Стоп! &fМир &#FB8808{world} &fне найден!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    break-forbidden:
+      - "[message] &#FB8808▶ Стоп! &fТайник &#FB8808«{name-cache}» &fломать нельзя!"
+      - "[sound] BLOCK_ANVIL_LAND"
+
+  interaction:
+    rename:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите &#FFFF00новое название &fдля тайника &#FFFF00«{name-cache}» &fв чат:"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      completed:
+        - "[message] &#FFFF00◆ &fТайник &#FFFF00«{old-name}» &fуспешно переименован в &#FFFF00«{new-name}»"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      already-exists:
+        - "[message] &#FB8808▶ Стоп! &fТайник с названием &#FB8808«{new-name}» &fуже существует!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим переименования тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+
+    hologram:
+      change-text:
+        mode-enabled:
+          - "[message] "
+          - "[message] &#FFFF00▶ &fВведите новый текст голограммы для тайника &#FFFF00«{name-cache}» &fв чат (Поддерживаются hex-цвета и стандартные цвета):"
+          - "[message] "
+          - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+          - "[message] "
+          - "[sound] BLOCK_NOTE_BLOCK_PLING"
+        completed:
+          - "[message] &#FFFF00◆ &fТекст голограммы для тайника &#FFFF00«{name-cache}» &fуспешно изменёна!"
+          - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+        cancelled:
+          - "[message] &#FFFF00◆ &fРежим изменения текста голограммы тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+          - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      toggle-enabled:
+        - "[message] &#FFFF00▶ &fГолограмма над тайником &#FFFF00«{name-cache}» &fвключена!"
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      toggle-disabled:
+        - "[message] &#FFFF00▶ &fГолограмма над тайником &#FFFF00«{name-cache}» &fвыключена!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      offset-changed:
+        - "[message] &#FFFF00▶ &fСмещение голограммы тайника &#FFFF00«{name-cache}» &fуспешно обновлено!"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      offset-invalid-number:
+        - "[message] &#FB8808▶ Стоп! &fЗначение смещения должно быть числом!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      offset-x:
+        mode-enabled:
+          - "[message] "
+          - "[message] &#FFFF00▶ &fВведите новое значение смещения по &#FFFF00X &fдля голограммы тайника &#FFFF00«{name-cache}»&f:"
+          - "[message] &#FFFF00◆ &fТекущее: &#FFFF00{current-x}"
+          - "[message] "
+          - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+          - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      offset-y:
+        mode-enabled:
+          - "[message] "
+          - "[message] &#FFFF00▶ &fВведите новое значение смещения по &#FFFF00Y &fдля голограммы тайника &#FFFF00«{name-cache}»&f:"
+          - "[message] &#FFFF00◆ &fТекущее: &#FFFF00{current-y}"
+          - "[message] "
+          - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+          - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      offset-z:
+        mode-enabled:
+          - "[message] "
+          - "[message] &#FFFF00▶ &fВведите новое значение смещения по &#FFFF00Z &fдля голограммы тайника &#FFFF00«{name-cache}»&f:"
+          - "[message] &#FFFF00◆ &fТекущее: &#FFFF00{current-z}"
+          - "[message] "
+          - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+          - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      offset-x-changed:
+        - "[message] &#FFFF00▶ &fСмещение по &#FFFF00X &fголограммы тайника &#FFFF00«{name-cache}» &fуспешно изменено на &#FFFF00{offset}"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      offset-y-changed:
+        - "[message] &#FFFF00▶ &fСмещение по &#FFFF00Y &fголограммы тайника &#FFFF00«{name-cache}» &fуспешно изменено на &#FFFF00{offset}"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      offset-z-changed:
+        - "[message] &#FFFF00▶ &fСмещение по &#FFFF00Z &fголограммы тайника &#FFFF00«{name-cache}» &fуспешно изменено на &#FFFF00{offset}"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+
+    replace-block:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите новый айди блока для тайника &#FFFF00«{name-cache}» в чат:"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      invalid:
+        - "[message] &#FB8808▶ Стоп! &fАйди блока &#FB8808{block-id} &fне является действительным блоком!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      same:
+        - "[message] &#FB8808▶ Стоп! &fБлок &#FB8808{block-id} &fуже установлен для этого тайника!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      completed:
+        - "[message] &#FFFF00◆ &fБлок тайника &#FFFF00«{name-cache}» &fуспешно заменён на &#FFFF00{block-id}"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим замены блока тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+
+    select-block:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fСломайте блок для установки тайника &#FFFF00«{name-cache}» &fили напишите в чат координаты с миром (&#FFFF00Пример: -2862 67 665 world&f)"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      cancelled:
+        - "[message] &#FFFF00◆ &fРежим выбора блока тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      no-selection-mode:
+        - "[message] &#FB8808▶ Стоп! &fВы &#FB8808не находитесь &fв режиме настройки тайника!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      same-cache:
+        - "[message] &#FB8808▶ Стоп! &fЭтот блок &#FB8808уже установлен &fдля тайника &#FB8808«{name-cache}»"
+        - "[sound] BLOCK_ANVIL_LAND"
+      set-location:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fТайник &#FFFF00«{name-cache}» &fуспешно установлен!"
+        - "[message] &#FFFF00◆ &fЕго координаты: &#FFFF00{x} {y} {z} &f(Мир: &#FFFF00{world}&f)"
+        - "[message] "
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+
+  key:
+    given:
+      - "[message] &#FFFF00◆ &fКлюч для тайника &#FFFF00«{name-cache}» &fуспешно выдан: игроку &#FFFF00{player} &fв кол-ве &#FFFF00{amount}шт."
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    no-key-in-hand:
+      - "[message] &#FB8808▶ Стоять! &fДля открытия тайника &#FB8808«{name-cache}» &fвы должны держать ключ!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    wrong-key:
+      - "[message] &#FB8808▶ Стоять! &fЭтот ключ &#FB8808не подходит &fдля этого тайника!"
+      - "[sound] BLOCK_ANVIL_LAND"
+    material-changed:
+      - "[message] &#FFFF00▶ &fМатериал ключа тайника &#FFFF00«{name-cache}» &fизменён на &#FFFF00{key-material}"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    name-changed:
+      - "[message] &#FFFF00▶ &fИмя ключа тайника &#FFFF00«{name-cache}» &fуспешно изменено!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    lore-changed:
+      - "[message] &#FFFF00▶ &fЛор ключа тайника &#FFFF00«{name-cache}» &fуспешно обновлён!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    cmd-changed:
+      - "[message] &#FFFF00▶ &fCustom Model Data ключа тайника &#FFFF00«{name-cache}» &fизменён на &#FFFF00{key-cmd}"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+    glow-enabled:
+      - "[message] &#FFFF00▶ &fЭффект переливания ключа тайника &#FFFF00«{name-cache}» &fвключён!"
+      - "[sound] BLOCK_NOTE_BLOCK_PLING"
+    glow-disabled:
+      - "[message] &#FFFF00▶ &fЭффект переливания ключа тайника &#FFFF00«{name-cache}» &fвыключен!"
+      - "[sound] BLOCK_NOTE_BLOCK_HAT"
+    reset-to-default:
+      - "[message] &#FFFF00▶ &fКлюч тайника &#FFFF00«{name-cache}» &fсброшён к заводским настройкам!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+
+    change-material:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите новый материал ключа для тайника &#FFFF00«{name-cache}» &fв чат:"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим изменения материала ключа тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      invalid:
+        - "[message] &#FB8808▶ Стоп! &fМатериал &#FB8808{material} &fне существует!"
+        - "[sound] BLOCK_ANVIL_LAND"
+    change-name:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите новое название ключа для тайника &#FFFF00«{name-cache}» &fв чат:"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим изменения названия ключа тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+    change-lore:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите новое описание ключа для тайника &#FFFF00«{name-cache}» &fв одно сообщение (для переноса строки используйте &#FFFF00\\n; чтобы удалить описание введите 'none' &f):"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим изменение описания ключа тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+    change-cmd:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите новое значение Custom Model Data для ключа тайника &#FFFF00«{name-cache}»:"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим изменения Custom Model Data ключа тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      invalid:
+        - "[message] &#FB8808▶ Стоп! &fCustom Model Data должно быть числом!"
+        - "[sound] BLOCK_ANVIL_LAND"
+    change-flags:
+      mode-enabled:
+        - "[message] "
+        - "[message] &#FFFF00▶ &fВведите название флага для ключа тайника &#FFFF00«{name-cache}»&f (Для добавления просто введите флаг, а для удаления поставьте '-' перед флагом, пример '-HIDE_ATTRIBUTES'):"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fТекущие флаги: &#FFFF00{key-flags}"
+        - "[message] "
+        - "[message] &#FFFF00◆ &fДля отмены напишите &#FFFF00/cm cancel"
+        - "[message] "
+        - "[sound] BLOCK_NOTE_BLOCK_PLING"
+      invalid:
+        - "[message] &#FB8808▶ Стоп! &fФлаг &#FB8808{flag} &fне существует!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      added:
+        - "[message] &#FFFF00◆ &fФлаг &#FFFF00{flag} &fуспешно добавлен к ключу!"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      removed:
+        - "[message] &#FFFF00◆ &fФлаг &#FFFF00{flag} &fуспешно удалён у ключа!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+      already-exists:
+        - "[message] &#FB8808▶ &fФлаг &#FFFF00{flag} &fуже установлен!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      not-found:
+        - "[message] &#FB8808▶ &fФлаг &#FFFF00{flag} &fне был установлен!"
+        - "[sound] BLOCK_ANVIL_LAND"
+      cancelled:
+        - "[message] &#FFFF00▶ &fРежим изменения флагов ключа тайника &#FFFF00«{name-cache}» &fуспешно отменён!"
+        - "[sound] BLOCK_NOTE_BLOCK_HAT"
+
+  loot-menu:
+    saved:
+      - "[message] &#FFFF00◆ &fЛут тайника &#FFFF00«{name-cache}» &fна странице &#FFFF00'{page}' &fуспешно сохранён!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+
+  list-caches:
+    header:
+      - "[message] "
+      - "[message] &#FFFF00▶ &fСписок тайников:"
+      - "[message] "
+    footer:
+      - "[message] "
+    caches:
+      - "[message]   &#FFFF00◆ &f{number}. &#FFFF00«{name-cache}» &f- &#FFFF00{x} {y} {z} &f(Мир: &#FFFF00{world}&f)"
+    empty-caches:
+      - "[message] &#FB8808▶ Стоп! &fТайники &#FB8808не были &fсозданы!"
+      - "[sound] BLOCK_ANVIL_LAND"
+      -
+  reload:
+    success:
+      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
+      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
+      - "[sound] ENTITY_PLAYER_LEVELUP"
+    failed:
+      - "[message] &#FB8808▶ Ошибка! &fНе удалось перезагрузить плагин: &#FB8808{reason}"
+      - "[message-console] &#FB8808▶ Ошибка! &fНе удалось перезагрузить плагин: &#FB8808{reason}"
+      - "[sound] BLOCK_ANVIL_LAND"
+    configs:
+      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[sound] ENTITY_PLAYER_LEVELUP"
+    holograms:
+      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[sound] ENTITY_PLAYER_LEVELUP"
+    animations:
+      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[sound] ENTITY_PLAYER_LEVELUP"
+    all:
+      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
+      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
+      - "[sound] ENTITY_PLAYER_LEVELUP"
+
+  stats:
+    no-players: "  &#FB8808◆ &fПока &#FB8808никто &fне открывал этот тайник...  "
+    top:
+      format: "&#FFFF00◆ &f{rank}. &e{player} &f— &e{count} открытий"
+
+  help:
+    main:
+      - "[message] "
+      - "[message] &#FFFF00▶ &fКоманды:"
+      - "[message] "
+      - "[message]   &#FFFF00◆ /cm createcache <Тайник> &f- Создать новый тайник"
+      - "[message]   &#FFFF00◆ /cm menu <Тайник> [имя-меню] &f- Открыть любое меню тайника"
+      - "[message]   &#FFFF00◆ /cm givekey <Тайник> (Количество) (Никнейм) &f- Выдать ключ от тайника"
+      - "[message]   &#FFFF00◆ /cm deletecache <Тайник> &f- Удалить тайник"
+      - "[message]   &#FFFF00◆ /cm listcaches &f- Показать список тайников"
+      - "[message]   &#FFFF00◆ /cm cancel &f- Отменить режим выбора блока для тайника"
+      - "[message]   &#FFFF00◆ /cm reload &f- Перезагрузить плагин"
+      - "[message] "
+    createcache:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm createcache <Тайник>"
+    menu:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm menu <Тайник> [имя-меню]"
+    givekey:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm givekey <Тайник> (Никнейм) (Количество)"
+    deletecache:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm deletecache <Тайник>"
+    listcaches:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm listcaches"
+    cancel:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm cancel"
+    reload:
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm reload"
+
+  unbreakable-enabled:
+    - "[message] &#FFFF00▶ &fЗащита от ломания тайника &#FFFF00«{name-cache}» &fвключена!"
+    - "[sound] BLOCK_NOTE_BLOCK_PLING"
+  unbreakable-disabled:
+    - "[message] &#FFFF00▶ &fЗащита от ломания тайника &#FFFF00«{name-cache}» &fвыключена!"
+    - "[sound] BLOCK_NOTE_BLOCK_HAT"
+  animation-changed:
+    - "[message] &#FFFF00▶ &fАнимация тайника &#FFFF00«{name-cache}» &fизменена на &#FFFF00{animation}"
+    - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+  chance-updated:
+    - "[message] &#FFFF00▶ &fШанс предмета в тайнике &#FFFF00«{name-cache}» &fизменён на &#FFFF00{chance}%"
+    - "[sound] BLOCK_NOTE_BLOCK_PLING"
+  inventory-full:
+    - "[message] &#FB8808▶ &fВаш инвентарь полностью заполнен, выпавший предмет лежит на полу..."
+    - "[sound] BLOCK_ANVIL_LAND"
+
+  update:
+    available:
+      - "[message] "
+      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня появилась новая версия &#00FF5A{latest-version}&f, а текущая — &#00FF5A{current-version}&f, так что советую обновить меня)"
+      - "[message] "
+      - "[message] &#00FF5A◆ &fА скачать новую версию можно тут: &#00FF5A{download-link}"
+      - "[message] "
+      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#00FF5A{latest-version}, а текущая — {current-version}, так что можно обновить тут: {download-link}"
+      - "[sound] ENTITY_PLAYER_LEVELUP"

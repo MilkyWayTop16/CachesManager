@@ -1,0 +1,73 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+menu:
+  title: "&8◆ Лут тайника «{name-cache}» | {current-page}/{max-pages}"
+  size: 54
+  max-pages: 5
+
+loot:
+  slots:
+    - 0-8
+    - 9-17
+    - 18-26
+    - 27-35
+    - 36-44
+
+items:
+  next-page:
+    material: ARROW
+    slot: 50
+    display-name: "&r "
+    lore:
+      - " &#C8C8C8[→] Следующая страница "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[next-page]"
+  last-page:
+    material: ARROW
+    slot: 48
+    display-name: "&r "
+    lore:
+      - " &#C8C8C8[←] Предыдущая страница "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[previous-page]"
+  steclo:
+    material: GRAY_STAINED_GLASS_PANE
+    slots:
+      - 46-47
+      - 49
+      - 51-52
+    display-name: "&r "
+  back:
+    material: YELLOW_STAINED_GLASS_PANE
+    slot: 53
+    display-name: "&r "
+    lore:
+      - " &#FFFF00[←] Назад "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[open-menu] global-menu.yml"
+  close:
+    material: RED_STAINED_GLASS_PANE
+    slot: 45
+    display-name: "&r "
+    lore:
+      - " &#FF9B00[✘] Закрыть "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[close-menu]"

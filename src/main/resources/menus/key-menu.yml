@@ -1,0 +1,169 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+
+menu:
+  title: "&8◆ Настройка ключа «{name-cache}»"
+  size: 54
+  update-interval: 20
+
+items:
+
+  change-material:
+    material: ANVIL
+    slot: 21
+    display-name: "                  &#FFFF00▶ &fМатериал ключа"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fматериал ключа  "
+      - ""
+      - "             &#FFFF00◆ &fТекущий: &#FFFF00{key-material}"
+      - ""
+    update: true
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[change-key-material]"
+
+  change-name:
+    material: NAME_TAG
+    slot: 22
+    display-name: "                  &#FFFF00▶ &fНазвание ключа"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fназвание ключа  "
+      - ""
+      - "         &#FFFF00◆ &fТекущее: {key-name}"
+      - ""
+    update: true
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[change-key-name]"
+
+  change-lore:
+    material: WRITABLE_BOOK
+    slot: 23
+    display-name: "                  &#FFFF00▶ &fОписание ключа"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fописание ключа  "
+      - ""
+      - "                      &#FFFF00◆ &fТекущее:"
+      - ""
+      - "                {key-lore}"
+      - ""
+    update: false
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[change-key-lore]"
+
+  toggle-glow:
+    material: GLOWSTONE_DUST
+    slot: 30
+    display-name: "             &#FFFF00▶ &fЭффект переливания ключа"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00вкл./выкл. &fпереливание ключа  "
+      - ""
+      - "                   &#FFFF00◆ &fСтатус: &#FFFF00{key-glow-status}"
+      - ""
+    update: true
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[toggle-key-glow]"
+
+  change-flags:
+    material: SHIELD
+    slot: 31
+    display-name: "                   &#FFFF00▶ &fАтрибуты ключа"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00настроить &fатрибуты ключа  "
+      - ""
+      - "  &#FFFF00◆ &fТекущее(ие): &#FFFF00{key-flags}  "
+      - ""
+    update: false
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[change-flags]"
+
+  change-cmd:
+    material: COMMAND_BLOCK
+    slot: 32
+    display-name: "                     &#FFFF00▶ &fCustom Model Data"
+    lore:
+      - ""
+      - "  &#FFFF00◆ &fНажмите, чтобы &#FFFF00изменить &fCustom Model Data ключа  "
+      - ""
+      - "                         &#FFFF00◆ &fТекущее: &#FFFF00{key-cmd}"
+      - ""
+    update: true
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[change-key-cmd]"
+
+  key-preview:
+    slot: 4
+    update: true
+
+  back:
+    material: YELLOW_STAINED_GLASS_PANE
+    slot: 53
+    display-name: "&r "
+    lore:
+      - " &#FFFF00[←] Назад "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[open-menu] global-menu.yml"
+
+  close:
+    material: RED_STAINED_GLASS_PANE
+    slot: 45
+    display-name: "&r "
+    lore:
+      - " &#FF9B00[✘] Закрыть "
+      - " "
+    click-commands:
+      - "[sound] BLOCK_LEVER_CLICK 1 1"
+      - "[close-menu]"
+
+  steclo-black:
+    material: BLACK_STAINED_GLASS_PANE
+    slots:
+      - 0
+      - 9
+      - 36
+      - 8
+      - 17
+      - 44
+    display-name: "&r "
+
+  steclo-gray:
+    material: GRAY_STAINED_GLASS_PANE
+    slots:
+      - 10
+      - 19
+      - 28
+      - 37
+      - 16
+      - 25
+      - 34
+      - 43
+    display-name: "&r "
+
+  chain:
+    material: CHAIN
+    slots:
+      - 18
+      - 27
+      - 26
+      - 35
+    display-name: "&r "

@@ -1,0 +1,426 @@
+#
+#             █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█
+#             █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄
+#
+#                             (By MilkyWay for everyone)
+#
+#     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
+#            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
+#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#                             Мне будет очень приятно :)
+#
+#
+#                 ================================================
+#                          КАК ДОБАВЛЯТЬ СВОИ АНИМАЦИИ?
+#                 ================================================
+#
+#
+#                        Каждая анимация состоит из 4 фаз:
+#
+#                      • delay — Пока игрок открывает тайник
+#                    • item — Пока предмет крутится в воздухе
+#                • final — Когда предмет перемещается в инвентарь
+#         • ambient — Постоянные частицы вокруг тайника во время анимации
+#
+#                                    Важно:
+#
+#      • В delay, item и final можно добавлять сколько угодно частиц и звуков
+#
+#    • Для частиц REDSTONE обязательно указывай параметр цвета (color: "#RRGGBB")
+#
+#         • Параметр shape в ambient может быть только "circle" или "box"
+#
+#           • У фейерверка есть отдельный раздел explosion — его можно
+#             полностью убрать, если хочешь простую анимацию без взрыва
+#
+#                 ================================================
+#                       Пример готовой анимации (шаблон):
+#                 ================================================
+
+# <Название анимации на английском>:
+#   name: "<Перевод названия анимации (то, что видно в меню)>"
+#   delay:
+#     duration: 50                  # Сколько времени (в тиках) длится фаза до появления предмета
+#     particles:
+#       - type: "END_ROD"           # Тип частиц
+#         amount: 18                # Количество частиц за один спавн
+#         offset-x: 0.4             # Разброс по оси X
+#         offset-y: 0.7             # Разброс по оси Y
+#         offset-z: 0.4             # Разброс по оси Z
+#         speed: 0.03               # Скорость разлёта частиц
+#     sounds:
+#       - type: "ENTITY_GHAST_SCREAM"     # Звук
+#         volume: 0.5                     # Громкость
+#         pitch: 1.4                      # Скорость
+#
+#   item:
+#     duration: 95                  # Сколько времени (в тиках) предмет будет крутиться
+#     height: 1.0                   # Высота предмета над тайником
+#     rotation-speed: 4.8           # Скорость вращения
+#     particles:
+#       - type: "DRAGON_BREATH"
+#         amount: 22
+#         offset-x: 0.5
+#         offset-y: 0.5
+#         offset-z: 0.5
+#         speed: 0.0
+#     sounds:
+#       - type: "BLOCK_NOTE_BLOCK_PLING"
+#         volume: 0.7
+#         pitch: 1.2
+#
+#   final:
+#     sounds:
+#       - type: "ENTITY_PLAYER_LEVELUP"
+#         volume: 1.0
+#         pitch: 0.9
+#     particles:
+#       - type: "CLOUD"
+#         amount: 25
+#         offset-x: 0.3
+#         offset-y: 0.3
+#         offset-z: 0.3
+#         speed: 0.1
+#
+#   ambient:
+#     particles:
+#       type: "REDSTONE"            # Тип частиц (можно любые)
+#       amount: 12
+#       offset-x: 0.55
+#       offset-y: 0.08
+#       offset-z: 0.55
+#       speed: 0.0
+#       color: "#AA00FF"            # Цвет для частиц "REDSTONE"
+#       size: 1.4                   # Размер частиц
+#       shape: "circle"             # Форма: "circle" или "box" (circle — Вокруг тайника в форме круга; box — Вокруг тайника разбросом)
+#       radius: 0.85                # Радиус круга
+#     interval: 3                   # Каждые сколько тиков спавнить частицы
+
+animations:
+  default:
+    name: "Обычная"
+    delay:
+      duration: 60
+      particles:
+        - type: "LAVA"
+          amount: 15
+          offset-x: 0.4
+          offset-y: 0.4
+          offset-z: 0.4
+          speed: 0.0
+      sounds:
+        - type: "BLOCK_LAVA_POP"
+          volume: 1.0
+          pitch: 1.0
+    item:
+      duration: 100
+      height: 1.0
+      rotation-speed: 4.5
+      particles:
+        - type: "SMALL_FLAME"
+          amount: 1
+          offset-x: 0.25
+          offset-y: 0.25
+          offset-z: 0.25
+          speed: 0.05
+        - type: "CAMPFIRE_COSY_SMOKE"
+          amount: 1
+          offset-x: 0.1
+          offset-y: 0.1
+          offset-z: 0.1
+          speed: 0.2
+      sounds:
+        - type: "ENTITY_EXPERIENCE_ORB_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+        - type: "BLOCK_NOTE_BLOCK_BELL"
+          volume: 1.0
+          pitch: 1.0
+        - type: "BLOCK_NOTE_BLOCK_PLING"
+          volume: 1.0
+          pitch: 1.0
+    final:
+      sounds:
+        - type: "ENTITY_ITEM_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+      particles:
+        - type: "CLOUD"
+          amount: 10
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+    ambient:
+      particles:
+        type: "REDSTONE"
+        amount: 20
+        offset-x: 0.6
+        offset-y: 0.12
+        offset-z: 0.6
+        speed: 0.0
+        color: "#FFAA00"
+        size: 1.6
+        shape: "circle"
+        radius: 0.8
+      interval: 4
+
+  mystical:
+    name: "Мистическая"
+    delay:
+      duration: 45
+      particles:
+        - type: "END_ROD"
+          amount: 20
+          offset-x: 0.4
+          offset-y: 0.55
+          offset-z: 0.4
+          speed: 0.02
+      sounds:
+        - type: "BLOCK_GLASS_BREAK"
+          volume: 0.65
+          pitch: 1.35
+    item:
+      duration: 85
+      height: 1.0
+      rotation-speed: 5.8
+      particles:
+        - type: "ENCHANTMENT_TABLE"
+          amount: 32
+          offset-x: 0.8
+          offset-y: 0.8
+          offset-z: 0.8
+          speed: 0.0
+      sounds:
+        - type: "ENTITY_ILLUSIONER_CAST_SPELL"
+          volume: 0.85
+          pitch: 0.95
+    final:
+      sounds:
+        - type: "ENTITY_PLAYER_LEVELUP"
+          volume: 1.0
+          pitch: 0.9
+        - type: "ENTITY_ITEM_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+      particles:
+        - type: "CLOUD"
+          amount: 10
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+    ambient:
+      particles:
+        type: "REDSTONE"
+        amount: 18
+        offset-x: 0.55
+        offset-y: 0.1
+        offset-z: 0.55
+        speed: 0.0
+        color: "#9900FF"
+        size: 1.9
+        shape: "circle"
+        radius: 0.8
+      interval: 4
+
+  firework:
+    name: "Фейерверк"
+    delay:
+      duration: 35
+      particles:
+        - type: "FIREWORKS_SPARK"
+          amount: 35
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+      sounds:
+        - type: "ENTITY_FIREWORK_ROCKET_SHOOT"
+          volume: 0.85
+          pitch: 1.1
+    item:
+      duration: 75
+      height: 1.32
+      rotation-speed: 6.2
+      particles:
+        - type: "ENCHANTMENT_TABLE"
+          amount: 25
+          offset-x: 0.25
+          offset-y: 0.25
+          offset-z: 0.25
+          speed: 0.0
+      sounds:
+        - type: "ENTITY_FIREWORK_ROCKET_BLAST"
+          volume: 1.0
+          pitch: 1.0
+        - type: "BLOCK_NOTE_BLOCK_BELL"
+          volume: 1.0
+          pitch: 1.0
+    final:
+      sounds:
+        - type: "ENTITY_PLAYER_LEVELUP"
+          volume: 1.0
+          pitch: 1.05
+        - type: "ENTITY_ITEM_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+      particles:
+        - type: "CLOUD"
+          amount: 10
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+    explosion:
+      type: "BALL_LARGE"
+      colors:
+        - "#FF0000"
+        - "#FFAA00"
+        - "#FFFF00"
+      fade-colors: [ ]
+      trail: true
+      flicker: true
+    ambient:
+      particles:
+        type: "REDSTONE"
+        amount: 14
+        offset-x: 0.65
+        offset-y: 0.15
+        offset-z: 0.65
+        speed: 0.0
+        color: "#FF3300"
+        size: 1.4
+        shape: "circle"
+        radius: 0.8
+      interval: 3
+
+  ghostly:
+    name: "Призрачная"
+    delay:
+      duration: 55
+      particles:
+        - type: "SOUL"
+          amount: 20
+          offset-x: 0.5
+          offset-y: 0.75
+          offset-z: 0.5
+          speed: 0.03
+      sounds:
+        - type: "ENTITY_PHANTOM_AMBIENT"
+          volume: 0.6
+          pitch: 1.3
+        - type: "BLOCK_SOUL_SAND_BREAK"
+          volume: 0.4
+          pitch: 0.8
+    item:
+      duration: 95
+      height: 1.0
+      rotation-speed: 3.9
+      particles:
+        - type: "SOUL_FIRE_FLAME"
+          amount: 2
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.0
+      sounds:
+        - type: "ENTITY_PHANTOM_HURT"
+          volume: 0.75
+          pitch: 0.9
+        - type: "ENTITY_GHAST_SCREAM"
+          volume: 0.45
+          pitch: 1.2
+        - type: "ENTITY_WITHER_SKELETON_AMBIENT"
+          volume: 0.5
+          pitch: 1.6
+    final:
+      sounds:
+        - type: "ENTITY_PLAYER_LEVELUP"
+          volume: 1.0
+          pitch: 0.75
+        - type: "ENTITY_ITEM_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+        - type: "BLOCK_SOUL_SAND_PLACE"
+          volume: 0.8
+          pitch: 0.6
+      particles:
+        - type: "CLOUD"
+          amount: 10
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+    ambient:
+      particles:
+        type: "REDSTONE"
+        amount: 24
+        offset-x: 0.5
+        offset-y: 0.09
+        offset-z: 0.5
+        speed: 0.0
+        color: "#8DBDCD"
+        size: 1.8
+        shape: "circle"
+        radius: 0.85
+      interval: 3
+
+  thunder:
+    name: "Гроза"
+    delay:
+      duration: 70
+      particles:
+        - type: "CRIT"
+          amount: 25
+          offset-x: 0.5
+          offset-y: 0.9
+          offset-z: 0.5
+          speed: 0.2
+      sounds:
+        - type: "ENTITY_LIGHTNING_BOLT_THUNDER"
+          volume: 0.6
+          pitch: 0.7
+    item:
+      duration: 65
+      height: 1.0
+      rotation-speed: 4.2
+      particles:
+        - type: "ENCHANTMENT_TABLE"
+          amount: 30
+          offset-x: 0.6
+          offset-y: 0.6
+          offset-z: 0.6
+          speed: 0.0
+      sounds:
+        - type: "ENTITY_LIGHTNING_BOLT_IMPACT"
+          volume: 0.85
+          pitch: 1.1
+    final:
+      sounds:
+        - type: "ENTITY_PLAYER_LEVELUP"
+          volume: 1.0
+          pitch: 0.8
+        - type: "ENTITY_ITEM_PICKUP"
+          volume: 1.0
+          pitch: 1.0
+      particles:
+        - type: "CLOUD"
+          amount: 10
+          offset-x: 0.3
+          offset-y: 0.3
+          offset-z: 0.3
+          speed: 0.1
+    ambient:
+      particles:
+        type: "REDSTONE"
+        amount: 15
+        offset-x: 0.55
+        offset-y: 0.11
+        offset-z: 0.55
+        speed: 0.0
+        color: "#FFFF55"
+        size: 1.6
+        shape: "circle"
+        radius: 0.9
+      interval: 2
