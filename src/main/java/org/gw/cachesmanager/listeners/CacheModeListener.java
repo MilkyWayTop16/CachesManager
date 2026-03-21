@@ -409,7 +409,9 @@ public class CacheModeListener implements Listener {
         reopenLastMenu(player, cacheName);
     }
 
-    private void handleRenameModeChat(Player player, String cacheName, String newName) {
+    private void handleRenameModeChat(Player player, String cacheName, String newNameRaw) {
+        String newName = newNameRaw.trim();
+
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
@@ -421,7 +423,15 @@ public class CacheModeListener implements Listener {
             return;
         }
 
+        if (newName.isEmpty()) {
+            configManager.executeActions(player, "interaction.rename.empty-name", ph);
+            activeModes.remove(player.getUniqueId());
+            reopenLastMenu(player, cacheName);
+            return;
+        }
+
         ph.put("new-name", newName);
+
         if (cacheManager.getCache(newName) != null) {
             configManager.executeActions(player, "interaction.rename.already-exists", ph);
             activeModes.remove(player.getUniqueId());
@@ -430,12 +440,17 @@ public class CacheModeListener implements Listener {
         }
 
         activeModes.remove(player.getUniqueId());
+
         if (cacheManager.renameCache(cacheName, newName)) {
             ph.put("old-name", cacheName);
             ph.put("new-name", newName);
             configManager.executeActions(player, "interaction.rename.completed", ph);
+
+            reopenLastMenu(player, newName);
+        } else {
+            configManager.executeActions(player, "interaction.rename.failed", ph);
+            reopenLastMenu(player, cacheName);
         }
-        reopenLastMenu(player, cacheName);
     }
 
     private void handleHologramTextModeChat(Player player, String cacheName, String newText) {
@@ -642,7 +657,7 @@ public class CacheModeListener implements Listener {
         String finalMenu = menu;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (menuManager != null) menuManager.openMenu(player, cacheName, finalMenu);
-        }, 2L);
+        }, 3L);
     }
 
     @EventHandler

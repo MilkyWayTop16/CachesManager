@@ -72,6 +72,12 @@ public class CommandsHandler implements CommandExecutor {
                     plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.no-permission");
                     return true;
                 }
+                if (args.length >= 3) {
+                    String lastArg = args[args.length - 1].toLowerCase();
+                    if (lastArg.equals("confirm") || lastArg.equals("cancel")) {
+                        return true;
+                    }
+                }
                 return deleteCacheCommand.execute(sender, args);
             case "listcaches":
                 if (!sender.hasPermission("cachesmanager.listcaches")) {

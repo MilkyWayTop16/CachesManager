@@ -1,6 +1,10 @@
 package org.gw.cachesmanager.managers;
 
 import lombok.Getter;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -186,7 +190,7 @@ public class ConfigManager {
             createDefaultMenus();
             preloadConfigs();
             startBatchSaver();
-            logInfo("Конфигурация успешно перезагружена");
+            logInfo("Конфигурация успешно перезагружена!)");
             return null;
         } catch (Exception e) {
             String error = "Ошибка при перезагрузке конфигурации: " + e.getMessage();
@@ -221,6 +225,7 @@ public class ConfigManager {
     public void executeActions(Player player, String path, Map<String, String> placeholders) {
         List<String> actions = config.getStringList("actions." + path);
         if (actions.isEmpty()) return;
+
         Map<String, String> ph = placeholders != null ? new HashMap<>(placeholders) : new HashMap<>();
         if (player != null) {
             ph.put("player", player.getName());
@@ -235,7 +240,19 @@ public class ConfigManager {
             }
 
             if (processed.startsWith("[message]")) {
-                if (player != null) player.sendMessage(HexColors.translate(processed.substring(9).trim()));
+                String rawContent = processed.substring(9);
+                String cacheName = ph.get("name-cache");
+
+                if (player != null && cacheName != null &&
+                        (action.contains("{confirm-button}") || action.contains("{cancel-button}"))) {
+                    sendConfirmationMessage(player, rawContent, cacheName);
+                    continue;
+                }
+
+                if (player != null) {
+                    String message = rawContent.startsWith(" ") ? rawContent.substring(1) : rawContent;
+                    player.sendMessage(HexColors.translate(message));
+                }
             } else if (processed.startsWith("[message-console]")) {
                 plugin.console(HexColors.translate(processed.substring(17).trim()));
             } else if (processed.startsWith("[broadcast]")) {
@@ -410,7 +427,7 @@ public class ConfigManager {
                 cfg.set("key.name", "&eКлюч от тайника " + cacheName);
                 cfg.set("key.lore", Arrays.asList("&7Для тайника: " + cacheName, "&7Одноразовый предмет"));
                 cfg.set("key.flags", Arrays.asList("HIDE_ENCHANTS", "HIDE_ATTRIBUTES"));
-
+                cfg.set("key.uuid", UUID.randomUUID().toString());
                 cfg.set("key.custom-model-data", 0);
                 cfg.set("animation", "up_and_down");
                 cfg.set("loot", new ArrayList<>());
@@ -675,6 +692,18 @@ public class ConfigManager {
         }
     }
 
+    public String getKeyUuid(String cacheName) {
+        FileConfiguration cfg = loadCacheConfig(cacheName);
+        if (cfg == null) return null;
+        String uuid = cfg.getString("key.uuid");
+        if (uuid == null || uuid.isEmpty()) {
+            uuid = UUID.randomUUID().toString();
+            cfg.set("key.uuid", uuid);
+            saveCacheConfig(cacheName);
+        }
+        return uuid;
+    }
+
     public List<String> getKeyFlags(String cacheName) {
         FileConfiguration cfg = loadCacheConfig(cacheName);
         return cfg != null ? cfg.getStringList("key.flags") : Arrays.asList("HIDE_ENCHANTS", "HIDE_ATTRIBUTES");
@@ -696,4 +725,67 @@ public class ConfigManager {
         return config.getBoolean("settings.bstats.enabled", true);
     }
 
+    private void sendConfirmationMessage(Player player, String line, String cacheName) {
+        if (player == null) return;
+
+        ComponentBuilder builder = new ComponentBuilder();
+
+        String remaining = line;
+
+        while (true) {
+            int confirmIdx = remaining.indexOf("{confirm-button}");
+            int cancelIdx = remaining.indexOf("{cancel-button}");
+
+            if (confirmIdx == -1 && cancelIdx == -1) {
+                if (!remaining.isEmpty()) {
+                    builder.append(TextComponent.fromLegacyText(HexColors.translate(remaining)));
+                }
+                break;
+            }
+
+            int nextIdx = (confirmIdx != -1 && (cancelIdx == -1 || confirmIdx < cancelIdx)) ? confirmIdx : cancelIdx;
+            String buttonType = (nextIdx == confirmIdx) ? "confirm" : "cancel";
+
+            if (nextIdx > 0) {
+                String before = remaining.substring(0, nextIdx);
+                builder.append(TextComponent.fromLegacyText(HexColors.translate(before)));
+            }
+
+            TextComponent button = createConfirmationButton(buttonType, cacheName);
+            builder.append(button);
+
+            int buttonLength = buttonType.equals("confirm") ? 16 : 15;
+            remaining = remaining.substring(nextIdx + buttonLength);
+        }
+
+        player.spigot().sendMessage(builder.create());
+    }
+
+    private TextComponent createConfirmationButton(String type, String cacheName) {
+        String textPath = "actions.cache.delete.confirm-buttons." + type + ".text";
+        String hoverPath = "actions.cache.delete.confirm-buttons." + type + ".hover";
+
+        String buttonText = config.getString(textPath, "");
+        String hoverText = config.getString(hoverPath, "");
+
+        buttonText = buttonText.replace("{name-cache}", cacheName);
+        hoverText = hoverText.replace("{name-cache}", cacheName);
+
+        String translatedText = HexColors.translate(buttonText);
+        TextComponent button = new TextComponent(TextComponent.fromLegacyText(translatedText));
+
+        if (!hoverText.isEmpty()) {
+            String translatedHover = HexColors.translate(hoverText);
+            button.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                    TextComponent.fromLegacyText(translatedHover)));
+        }
+
+        String command = type.equals("confirm")
+                ? "/cm deletecache \"" + cacheName + "\" confirm"
+                : "/cm deletecache \"" + cacheName + "\" cancel";
+
+        button.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
+
+        return button;
+    }
 }

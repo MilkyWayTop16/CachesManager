@@ -1,7 +1,7 @@
 package org.gw.cachesmanager.utils;
 
 import org.bukkit.plugin.java.JavaPlugin;
-import java.lang.reflect.Constructor;
+import org.bstats.bukkit.Metrics;
 
 public class BStats {
 
@@ -9,10 +9,9 @@ public class BStats {
         if (plugin == null) return;
 
         try {
-            Class<?> metricsClass = Class.forName("org.gw.cachesmanager.bstats.bukkit.Metrics");
-            Constructor<?> constructor = metricsClass.getConstructor(org.bukkit.plugin.Plugin.class, int.class);
-            constructor.newInstance(plugin, 30121);
-        } catch (Exception ignored) {
+            new Metrics(plugin, 30121);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

@@ -4,6 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +26,22 @@ public class MenuCommand {
         }
 
         Player player = (Player) sender;
-        String cacheName = args[1];
+
+        String cacheName;
+        String menuFile = "global-menu.yml";
+
+        if (args.length >= 3 && args[args.length - 1].toLowerCase().endsWith(".yml")) {
+            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1)).trim();
+            menuFile = args[args.length - 1];
+        } else {
+            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        }
+
+        if (cacheName.isEmpty()) {
+            plugin.getConfigManager().executeActions(player, "help.menu");
+            return true;
+        }
+
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
 
@@ -34,16 +50,11 @@ public class MenuCommand {
             return true;
         }
 
-        String menuFile = "global-menu.yml";
-        if (args.length >= 3) {
-            menuFile = args[2];
-            if (!menuFile.endsWith(".yml")) menuFile += ".yml";
-
-            if (plugin.getConfigManager().loadMenuConfig(menuFile) == null) {
-                ph.put("menu-file", menuFile);
-                plugin.getConfigManager().executeActions(player, "errors.menu-not-found", ph);
-                return true;
-            }
+        if (!menuFile.endsWith(".yml")) menuFile += ".yml";
+        if (plugin.getConfigManager().loadMenuConfig(menuFile) == null) {
+            ph.put("menu-file", menuFile);
+            plugin.getConfigManager().executeActions(player, "errors.menu-not-found", ph);
+            return true;
         }
 
         plugin.getMenuManager().openMenu(player, cacheName, menuFile);

@@ -18,6 +18,7 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.HexColors;
@@ -37,7 +38,7 @@ public class AnimationsManager implements Listener {
 
     private final Map<String, Item> phantomItems = new HashMap<>();
     private final Map<String, ArmorStand> itemHolograms = new HashMap<>();
-    private final Map<String, BukkitRunnable> animationTasks = new HashMap<>();
+    private final Map<String, BukkitTask> animationTasks = new HashMap<>();
     private final Map<UUID, ItemStack> pendingLoot = new ConcurrentHashMap<>();
 
     public AnimationsManager(CachesManager plugin, HologramManager hologramManager) {
@@ -191,30 +192,35 @@ public class AnimationsManager implements Listener {
         } else {
             Location delayLoc = baseLocation.clone().add(0.5, 0.5, 0.5);
             Location itemLoc = baseLocation.clone().add(0.5, animation.getItemHeight() + 0.1, 0.5);
-            new BukkitRunnable() {
-                int ticks = 0;
-                @Override
-                public void run() {
-                    if (ticks >= animation.getDelayDuration()) {
-                        cancel();
-                        startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache);
-                        return;
-                    }
-                    if (ticks % 8 == 0) {
-                        playSounds(delayLoc, animation.getDelaySounds());
-                        spawnParticles(delayLoc, animation.getDelayParticles(), null);
-                    }
-                    if (ticks % animation.getAmbientInterval() == 0) {
-                        spawnAmbientParticles(baseLocation, animation);
-                    }
-                    ticks++;
-                }
-            }.runTaskTimer(plugin, 0L, 1L);
+            startDelayPhase(cacheName, player, item, delayLoc, itemLoc, baseLocation, animation, cache);
         }
     }
 
-    private void startItemPhase(String cacheName, Player player, ItemStack item, Location baseLocation, Location itemLoc,
-                                Animation animation, CacheManager.Cache cache) {
+    private void startDelayPhase(String cacheName, Player player, ItemStack item, Location delayLoc,
+                                 Location itemLoc, Location baseLocation, Animation animation, CacheManager.Cache cache) {
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (ticks >= animation.getDelayDuration()) {
+                    cancel();
+                    startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache);
+                    return;
+                }
+                if (ticks % 8 == 0) {
+                    playSounds(delayLoc, animation.getDelaySounds());
+                    spawnParticles(delayLoc, animation.getDelayParticles(), null);
+                }
+                if (ticks % animation.getAmbientInterval() == 0) {
+                    spawnAmbientParticles(baseLocation, animation);
+                }
+                ticks++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void startItemPhase(String cacheName, Player player, ItemStack item, Location baseLocation,
+                                Location itemLoc, Animation animation, CacheManager.Cache cache) {
         spawnPhantomItem(cacheName, itemLoc, item);
         Item phantom = phantomItems.get(cacheName);
         if (phantom == null || phantom.isDead()) {
@@ -233,7 +239,7 @@ public class AnimationsManager implements Listener {
         final Location reusableLoc = itemLoc.clone();
         final float[] yaw = {itemLoc.getYaw()};
 
-        BukkitRunnable task = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
@@ -242,37 +248,25 @@ public class AnimationsManager implements Listener {
                     finishAnimation(cacheName, player, item, baseLocation, reusableLoc, animation, cache);
                     return;
                 }
-
-                Item p = phantomItems.get(cacheName);
-                if (p == null || p.isDead()) {
-                    cancel();
-                    finishAnimation(cacheName, player, item, baseLocation, reusableLoc, animation, cache);
-                    return;
-                }
-
                 if (ticks % animation.getAmbientInterval() == 0) {
                     spawnAmbientParticles(baseLocation, animation);
                 }
-
                 yaw[0] += (float) animation.getRotationSpeed();
                 reusableLoc.setYaw(yaw[0]);
 
                 if (ticks % 3 == 0) {
-                    p.teleport(reusableLoc);
+                    phantom.teleport(reusableLoc);
                     ArmorStand h = itemHolograms.get(cacheName);
                     if (h != null && !h.isDead()) {
                         h.teleport(reusableLoc.clone().add(0, 0.5, 0));
                     }
                 }
-
-                if (ticks % 3 == 0 && item != null && item.getType() != Material.AIR) {
+                if (ticks % 3 == 0 && item.getType() != Material.AIR) {
                     spawnParticles(reusableLoc, animation.getItemParticles(), item);
                 }
-
                 ticks++;
             }
-        };
-        task.runTaskTimer(plugin, 0L, 1L);
+        }.runTaskTimer(plugin, 0L, 1L);
         animationTasks.put(cacheName, task);
     }
 
@@ -520,31 +514,32 @@ public class AnimationsManager implements Listener {
     }
 
     public void removePhantomItem(String cacheName) {
-        BukkitRunnable task = animationTasks.remove(cacheName);
+        BukkitTask task = animationTasks.remove(cacheName);
         if (task != null) task.cancel();
 
         Item phantomItem = phantomItems.remove(cacheName);
         if (phantomItem != null && !phantomItem.isDead() && phantomItem.getWorld() != null) {
             phantomItem.remove();
         }
+        removeItemHologram(cacheName);
     }
 
     public void forceFinishAnimationForPlayer(Player player) {
-        for (String cacheName : new ArrayList<>(animationTasks.keySet())) {
-            BukkitRunnable task = animationTasks.remove(cacheName);
-            if (task != null) task.cancel();
-
+        List<String> cacheNames = new ArrayList<>(animationTasks.keySet());
+        for (String cacheName : cacheNames) {
+            BukkitTask task = animationTasks.remove(cacheName);
+            if (task != null) {
+                task.cancel();
+            }
             CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
             if (cache != null) {
                 cache.setInUse(false);
             }
-
             ItemStack item = pendingLoot.remove(player.getUniqueId());
             if (item != null && cache != null && cache.getLocation() != null) {
                 Location dropLoc = cache.getLocation().clone().add(0.5, 0.5, 0.5);
                 dropLoc.getWorld().dropItemNaturally(dropLoc, item);
             }
-
             removePhantomItem(cacheName);
             removeItemHologram(cacheName);
         }
@@ -645,7 +640,7 @@ public class AnimationsManager implements Listener {
 
     public void clearAllAnimations() {
         for (String cacheName : new ArrayList<>(animationTasks.keySet())) {
-            BukkitRunnable task = animationTasks.remove(cacheName);
+            BukkitTask task = animationTasks.remove(cacheName);
             if (task != null) task.cancel();
         }
 

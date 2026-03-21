@@ -9,17 +9,15 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
 
-import java.util.UUID;
-
 public class ItemManager {
     private final CachesManager plugin;
     private final NamespacedKey cacheNameKey;
-    private final NamespacedKey cacheUuidKey;
+    private final NamespacedKey keyUuidKey;
 
     public ItemManager(CachesManager plugin) {
         this.plugin = plugin;
         this.cacheNameKey = new NamespacedKey(plugin, "cache-name");
-        this.cacheUuidKey = new NamespacedKey(plugin, "cache-uuid");
+        this.keyUuidKey = new NamespacedKey(plugin, "key-uuid");
     }
 
     public boolean isKey(ItemStack item, String cacheName) {
@@ -28,9 +26,12 @@ public class ItemManager {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
         String name = pdc.get(cacheNameKey, PersistentDataType.STRING);
-        if (name == null || !name.equals(cacheName)) return false;
+        String uuid = pdc.get(keyUuidKey, PersistentDataType.STRING);
 
-        return true;
+        if (name == null || !name.equals(cacheName) || uuid == null) return false;
+
+        String correctUuid = plugin.getConfigManager().getKeyUuid(cacheName);
+        return uuid.equals(correctUuid);
     }
 
     public void giveKey(Player player, String cacheName, int amount) {
@@ -42,7 +43,10 @@ public class ItemManager {
         if (meta != null) {
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
             pdc.set(cacheNameKey, PersistentDataType.STRING, cacheName);
-            pdc.set(cacheUuidKey, PersistentDataType.STRING, UUID.randomUUID().toString());
+
+            String uuid = plugin.getConfigManager().getKeyUuid(cacheName);
+            pdc.set(keyUuidKey, PersistentDataType.STRING, uuid);
+
             key.setItemMeta(meta);
         }
         key.setAmount(amount);

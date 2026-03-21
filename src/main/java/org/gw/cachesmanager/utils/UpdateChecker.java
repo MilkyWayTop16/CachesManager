@@ -19,8 +19,6 @@ public class UpdateChecker implements Listener {
     private final CachesManager plugin;
     private boolean updateAvailable = false;
     private String latestVersion = null;
-    private String downloadLink = null;
-    private BukkitRunnable periodicTask;
 
     public UpdateChecker(CachesManager plugin) {
         this.plugin = plugin;
@@ -28,23 +26,17 @@ public class UpdateChecker implements Listener {
     }
 
     public void reload() {
-        if (periodicTask != null) periodicTask.cancel();
         updateAvailable = false;
         latestVersion = null;
-        downloadLink = null;
         startChecker();
     }
 
     private void startChecker() {
         if (!plugin.getConfigManager().isUpdateCheckerEnabled()) return;
+        checkForUpdate();
 
         String mode = plugin.getConfigManager().getUpdateNotifyMode();
-
-        if (!"disabled".equals(mode)) {
-            checkForUpdate();
-        }
-
-        if ("periodic".equals(mode) || "both".equals(mode)) {
+        if ("periodic".equalsIgnoreCase(mode) || "both".equalsIgnoreCase(mode)) {
             startPeriodicTask();
         }
     }
@@ -53,13 +45,12 @@ public class UpdateChecker implements Listener {
         int hours = plugin.getConfigManager().getUpdatePeriodicIntervalHours();
         long ticks = hours * 60L * 60L * 20L;
 
-        periodicTask = new BukkitRunnable() {
+        new BukkitRunnable() {
             @Override
             public void run() {
                 checkForUpdate();
             }
-        };
-        periodicTask.runTaskTimerAsynchronously(plugin, ticks, ticks);
+        }.runTaskTimerAsynchronously(plugin, ticks, ticks);
     }
 
     private void checkForUpdate() {
@@ -69,36 +60,44 @@ public class UpdateChecker implements Listener {
                 try {
                     URL url = new URL("https://api.github.com/repos/MilkyWayTop16/CachesManager/releases/latest");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("GET");
                     conn.setRequestProperty("User-Agent", "CachesManager-UpdateChecker");
-                    conn.setConnectTimeout(5000);
-                    conn.setReadTimeout(5000);
 
                     if (conn.getResponseCode() != 200) return;
 
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) response.append(line);
-                    reader.close();
+                    String json = new BufferedReader(new InputStreamReader(conn.getInputStream()))
+                            .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
 
-                    String json = response.toString();
                     String tag = extractValue(json, "tag_name");
-                    String html = extractValue(json, "html_url");
 
-                    if (tag != null && !tag.equals(plugin.getDescription().getVersion())) {
+                    if (tag == null) return;
+
+                    String cleanLatest = cleanVersion(tag);
+                    String cleanCurrent = cleanVersion(plugin.getDescription().getVersion());
+
+                    if (!cleanLatest.isEmpty() && !cleanLatest.equals(cleanCurrent)) {
                         updateAvailable = true;
                         latestVersion = tag;
-                        downloadLink = html != null ? html : "https://github.com/MilkyWayTop16/CachesManager/releases";
 
                         String mode = plugin.getConfigManager().getUpdateNotifyMode();
-                        if (!"on-join".equals(mode)) {
+                        if (!"on-join".equalsIgnoreCase(mode)) {
                             plugin.getConfigManager().executeActions(null, "update.available", createPlaceholders());
                         }
                     }
                 } catch (Exception ignored) {}
             }
         }.runTaskAsynchronously(plugin);
+    }
+
+    private String cleanVersion(String version) {
+        if (version == null) return "";
+        return version.replaceFirst("^v", "")
+                .replace(" ", "")
+                .replace("-SNAPSHOT", "")
+                .replace("-BETA", "")
+                .replace("-DEV", "")
+                .replace("-ALPHA", "")
+                .replace("plugin", "")
+                .trim();
     }
 
     private String extractValue(String json, String key) {
@@ -112,9 +111,9 @@ public class UpdateChecker implements Listener {
 
     private Map<String, String> createPlaceholders() {
         Map<String, String> ph = new HashMap<>();
-        ph.put("latest-version", latestVersion);
+        ph.put("latest-version", latestVersion != null ? latestVersion : "неизвестно");
         ph.put("current-version", plugin.getDescription().getVersion());
-        ph.put("download-link", downloadLink);
+        ph.put("download-link", "https://github.com/MilkyWayTop16/CachesManager/releases");
         return ph;
     }
 
@@ -122,7 +121,8 @@ public class UpdateChecker implements Listener {
     public void onPlayerJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         String mode = plugin.getConfigManager().getUpdateNotifyMode();
-        if (updateAvailable && ("on-join".equals(mode) || "both".equals(mode)) &&
+
+        if (updateAvailable && ("on-join".equalsIgnoreCase(mode) || "both".equalsIgnoreCase(mode)) &&
                 (p.isOp() || p.hasPermission("cachesmanager.admin"))) {
             plugin.getConfigManager().executeActions(p, "update.available", createPlaceholders());
         }

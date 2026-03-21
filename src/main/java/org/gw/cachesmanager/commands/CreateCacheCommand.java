@@ -4,6 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,9 +26,16 @@ public class CreateCacheCommand {
         }
 
         Player player = (Player) sender;
-        String cacheName = args[1];
+        String cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+
+        if (cacheName.isEmpty()) {
+            plugin.getConfigManager().executeActions(player, "help.createcache");
+            return true;
+        }
+
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
+
         if (plugin.getCacheManager().createCache(cacheName)) {
             plugin.getConfigManager().executeActions(player, "cache.created", ph);
             plugin.getMenuManager().openMenu(player, cacheName, "global-menu.yml");

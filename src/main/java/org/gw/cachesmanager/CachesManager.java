@@ -22,6 +22,7 @@ public class CachesManager extends JavaPlugin {
     @Getter private AnimationsManager animationsManager;
     @Getter private LootHistoryManager lootHistoryManager;
     @Getter private UpdateChecker updateChecker;
+    @Getter private ConfirmDeleteListener confirmDeleteListener;
 
 
     @Override
@@ -81,6 +82,8 @@ public class CachesManager extends JavaPlugin {
                 cacheModeListener, animationsManager, statsManager, lootHistoryManager);
 
         CacheBlockListener cacheBlockListener = new CacheBlockListener(this, cacheManager, itemManager, menuManager, configManager);
+        this.confirmDeleteListener = new ConfirmDeleteListener(this);
+        getServer().getPluginManager().registerEvents(this.confirmDeleteListener, this);
 
         cacheModeListener.setMenuManager(menuManager);
         getServer().getPluginManager().registerEvents(animationsManager, this);

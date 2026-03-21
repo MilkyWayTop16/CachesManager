@@ -479,21 +479,16 @@ public class MenuManager implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         Player p = (Player) event.getWhoClicked();
         UUID id = p.getUniqueId();
-
         String menuFile = playerMenus.get(id);
         String cacheName = playerCaches.get(id);
         Integer page = playerPages.get(id);
-
         if (menuFile == null || cacheName == null || page == null) return;
-
         FileConfiguration cfg = configManager.loadMenuConfig(menuFile);
         if (cfg == null) return;
-
         List<Integer> lootSlots = parseSlotRange(cfg.getStringList("loot.slots"), event.getInventory().getSize());
         boolean isLootMenu = "loot-menu.yml".equals(menuFile);
         boolean isChanceMenu = "chance-menu.yml".equals(menuFile);
         boolean clickedTop = event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getTopInventory());
-
         if (!clickedTop) {
             if (isLootMenu) {
                 event.setCancelled(false);
@@ -503,29 +498,29 @@ public class MenuManager implements Listener {
             }
             return;
         }
-
         int slot = event.getSlot();
         if (slot < 0 || slot >= event.getInventory().getSize()) {
             event.setCancelled(true);
             return;
         }
-
-        event.setCancelled(true);
-
         if (isLootMenu && lootSlots.contains(slot)) {
+            if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT ||
+                    event.getClick() == ClickType.NUMBER_KEY || event.getClick() == ClickType.DOUBLE_CLICK) {
+                event.setCancelled(true);
+                return;
+            }
             event.setCancelled(false);
             Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, event.getInventory()), 1L);
             return;
         }
-
         if (isChanceMenu && lootSlots.contains(slot)) {
             handleChanceClick(p, cfg, cacheName, event, page, lootSlots);
             return;
         }
-
         if (!lootSlots.contains(slot)) {
             handleNonLootClick(p, cfg, cacheName, event, page);
         }
+        event.setCancelled(true);
     }
 
     private void handleToggleKeyGlow(Player p, int idx) {
@@ -802,11 +797,9 @@ public class MenuManager implements Listener {
         String menuFile = playerMenus.get(id);
         String cacheName = playerCaches.get(id);
         Integer page = playerPages.get(id);
-
         if ("loot-menu.yml".equals(menuFile) && cacheName != null && page != null) {
             saveLootForPage(p, cacheName, page, event.getInventory());
         }
-
         playerMenus.remove(id);
         playerCaches.remove(id);
         playerPages.remove(id);

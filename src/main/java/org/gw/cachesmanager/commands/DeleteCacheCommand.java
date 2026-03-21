@@ -4,6 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,19 +16,36 @@ public class DeleteCacheCommand {
     }
 
     public boolean execute(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.deletecache");
+        if (!(sender instanceof Player)) {
+            plugin.getConfigManager().executeActions(null, "errors.console-not-allowed");
             return true;
         }
 
-        String cacheName = args[1];
+        if (args.length < 2) {
+            plugin.getConfigManager().executeActions((Player) sender, "help.deletecache");
+            return true;
+        }
+
+        String cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        Player p = (Player) sender;
+
+        if (cacheName.isEmpty()) {
+            plugin.getConfigManager().executeActions(p, "help.deletecache");
+            return true;
+        }
+
+        if (plugin.getCacheManager().getCache(cacheName) == null) {
+            Map<String, String> ph = new HashMap<>();
+            ph.put("name-cache", cacheName);
+            plugin.getConfigManager().executeActions(p, "cache.not-found", ph);
+            return true;
+        }
+
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
-        if (plugin.getCacheManager().deleteCache(cacheName)) {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "cache.deleted", ph);
-        } else {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "cache.not-found", ph);
-        }
+        plugin.getConfigManager().executeActions(p, "cache.delete.confirm", ph);
+
+        plugin.getConfirmDeleteListener().addPending(p, cacheName);
         return true;
     }
 }

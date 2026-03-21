@@ -54,6 +54,17 @@ settings:
     # (Записи старше этого значения автоматически удаляются при загрузке)
     max-days: 90
 
+  # Система голограмм над тайниками
+  hologram-provider:
+    # Доступные варианты:
+    # decent   — использовать DecentHolograms (старый, но стабильный)
+    # fancy    — использовать FancyHolograms (современный, на Display Entities, меньше лагов)
+    # auto     — автоматически определить (Fancy в приоритете)
+    #
+    # При режиме "auto" плагин сам определит, что установлено на сервере,
+    # и **изменит** это значение в файле (чтобы при следующем запуске не проверять заново)
+    provider: auto
+
 # Разные события
 #
 # Доступные действия для любого списка:
@@ -126,6 +137,27 @@ actions:
     break-forbidden:
       - "[message] &#FB8808▶ Стоп! &fТайник &#FB8808«{name-cache}» &fломать нельзя!"
       - "[sound] BLOCK_ANVIL_LAND"
+    delete:
+      confirm:
+        - "[message] "
+        - "[message] &#FB8808◆ &fВы уверены, что хотите &#FB8808удалить &fтайник &#FB8808«{name-cache}»&f?"
+        - "[message] "
+        - "[message]      {confirm-button}       {cancel-button}"
+        - "[message] "
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      confirm-buttons:
+        confirm:
+          text: "&#00FF11[Подтвердить]"
+          hover: "&#00FF11◆ &fНажмите, чтобы &#00FF11удалить &fтайник &#00FF11«{name-cache}»"
+        cancel:
+          text: "&#FB8808[Отменить]"
+          hover: "&#FB8808◆ &fНажмите, чтобы &#FB8808отменить &fудаление тайника &#FB8808«{name-cache}»"
+      success:
+        - "[message] &#FFFF00◆ &fТайник &#FFFF00«{name-cache}» &fуспешно удалён!"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
+      cancelled:
+        - "[message] &#FFFF00◆ &fУдаление тайника &#FFFF00«{name-cache}» &fотменено!"
+        - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
 
   interaction:
     rename:
@@ -417,28 +449,36 @@ actions:
       - "[message] "
       - "[message] &#FFFF00▶ &fКоманды:"
       - "[message] "
-      - "[message]   &#FFFF00◆ /cm createcache <Тайник> &f- Создать новый тайник"
-      - "[message]   &#FFFF00◆ /cm menu <Тайник> [имя-меню] &f- Открыть любое меню тайника"
-      - "[message]   &#FFFF00◆ /cm givekey <Тайник> (Количество) (Никнейм) &f- Выдать ключ от тайника"
-      - "[message]   &#FFFF00◆ /cm deletecache <Тайник> &f- Удалить тайник"
-      - "[message]   &#FFFF00◆ /cm listcaches &f- Показать список тайников"
-      - "[message]   &#FFFF00◆ /cm cancel &f- Отменить режим выбора блока для тайника"
-      - "[message]   &#FFFF00◆ /cm reload &f- Перезагрузить плагин"
+      - "[message]   &#FFFF00◆ /cm createcache <Тайник> &f— Создать новый тайник"
+      - "[message]   &#FFFF00◆ /cm menu <Тайник> (Меню) &f— Открыть любое меню тайника"
+      - "[message]   &#FFFF00◆ /cm givekey <Тайник> (Количество) (Никнейм) &f— Выдать ключ от тайника"
+      - "[message]   &#FFFF00◆ /cm deletecache <Тайник> &f— Удалить тайник"
+      - "[message]   &#FFFF00◆ /cm listcaches &f— Показать список тайников"
+      - "[message]   &#FFFF00◆ /cm cancel &f— Отменить режим редактирования тайника"
+      - "[message]   &#FFFF00◆ /cm reload (all/animations/configs/holorgams) &f— Перезагрузить весь плагин или нужную часть"
       - "[message] "
+      - "[sound] BLOCK_LEVER_CLICK"
     createcache:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm createcache <Тайник>"
+      - "[sound] BLOCK_LEVER_CLICK"
     menu:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm menu <Тайник> [имя-меню]"
+      - "[sound] BLOCK_LEVER_CLICK"
     givekey:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm givekey <Тайник> (Никнейм) (Количество)"
+      - "[sound] BLOCK_LEVER_CLICK"
     deletecache:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm deletecache <Тайник>"
+      - "[sound] BLOCK_LEVER_CLICK"
     listcaches:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm listcaches"
+      - "[sound] BLOCK_LEVER_CLICK"
     cancel:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm cancel"
+      - "[sound] BLOCK_LEVER_CLICK"
     reload:
-      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm reload"
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm reload (all/animations/configs/holorgams)"
+      - "[sound] BLOCK_LEVER_CLICK"
 
   unbreakable-enabled:
     - "[message] &#FFFF00▶ &fЗащита от ломания тайника &#FFFF00«{name-cache}» &fвключена!"
@@ -453,15 +493,15 @@ actions:
     - "[message] &#FFFF00▶ &fШанс предмета в тайнике &#FFFF00«{name-cache}» &fизменён на &#FFFF00{chance}%"
     - "[sound] BLOCK_NOTE_BLOCK_PLING"
   inventory-full:
-    - "[message] &#FB8808▶ &fВаш инвентарь полностью заполнен, выпавший предмет лежит на полу..."
+    - "[message] &#FB8808▶ &fВаш инвентарь &#FB8808полностью заполнен&f, выпавший предмет &#FB8808лежит &fна полу..."
     - "[sound] BLOCK_ANVIL_LAND"
 
   update:
     available:
       - "[message] "
-      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня появилась новая версия &#00FF5A{latest-version}&f, а текущая — &#00FF5A{current-version}&f, так что советую обновить меня)"
+      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня &#00FF5Aпоявилась новая &fверсия &#ffff00{latest-version}&f, а текущая — &#ffff00{current-version}&f, так что советую обновить меня)"
       - "[message] "
-      - "[message] &#00FF5A◆ &fА скачать новую версию можно тут: &#00FF5A{download-link}"
+      - "[message] &#00FF5A◆ &fСкачать новую версию можно тут: &#00FF5A{download-link}"
       - "[message] "
-      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#00FF5A{latest-version}, а текущая — {current-version}, так что можно обновить тут: {download-link}"
+      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#ffff00{latest-version}&f, а текущая — &#ffff00{current-version}&f, так что можно обновить тут: &#ffff00{download-link}"
       - "[sound] ENTITY_PLAYER_LEVELUP"

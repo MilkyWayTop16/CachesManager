@@ -75,7 +75,7 @@ public class CacheManager {
                 if (index >= cacheNames.size()) {
                     isReloading = false;
                     cancel();
-                    plugin.console("&#ffff00◆ CachesManager &f| Загружено " + caches.size() + " тайников");
+                    plugin.log("&#ffff00◆ CachesManager &f| Загружено " + caches.size() + " тайников");
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
@@ -458,46 +458,35 @@ public class CacheManager {
                 configManager.executeActions(player, "cache.in-use", ph);
                 return false;
             }
-
             try {
                 Map<String, String> ph = new HashMap<>();
                 ph.put("name-cache", getDisplayName());
-
                 if (lootWithChances == null || lootWithChances.isEmpty()) {
                     configManager.executeActions(player, "cache.no-loot", ph);
                     setInUse(false);
                     return false;
                 }
-
                 ItemStack lootItem = selectRandomItem();
                 if (lootItem == null) {
                     configManager.executeActions(player, "cache.zero-chance", ph);
                     setInUse(false);
                     return false;
                 }
-
                 statsManager.incrementOpenCount(this);
                 statsManager.recordPlayerOpen(this, player.getName());
                 lootHistoryManager.addEntry(name, player.getName(), lootItem);
-                if (lootItem != null) statsManager.addLootGiven(this, 1);
-
+                statsManager.addLootGiven(this, 1);
                 hologramManager.removeHologram(name);
-
                 AnimationsManager.Animation anim = animationsManager.getAnimations().get(animation);
                 if (anim == null) {
                     giveLoot(player, lootItem, ph);
                     return true;
                 }
-
                 animationsManager.playAnimation(player, animation, location, lootItem, name);
                 return true;
             } catch (Exception e) {
                 setInUse(false);
                 return false;
-            } finally {
-                if (animationsManager.getAnimations().get(animation) == null) {
-                    setInUse(false);
-                }
             }
         }
 
