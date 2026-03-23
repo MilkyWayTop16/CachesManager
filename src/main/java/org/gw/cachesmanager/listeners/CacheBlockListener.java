@@ -112,6 +112,13 @@ public class CacheBlockListener implements Listener {
                     return;
                 }
 
+                boolean hasAnyKey = itemManager.isAnyKey(mainItem) || itemManager.isAnyKey(offItem);
+
+                if (!hasAnyKey) {
+                    configManager.executeActions(player, "key.no-key-in-hand", ph);
+                    return;
+                }
+
                 ItemStack keyItem = null;
                 EquipmentSlot keyHand = null;
 
@@ -124,7 +131,7 @@ public class CacheBlockListener implements Listener {
                 }
 
                 if (keyItem == null) {
-                    configManager.executeActions(player, "key.no-key-in-hand", ph);
+                    configManager.executeActions(player, "key.wrong-key", ph);
                     return;
                 }
 

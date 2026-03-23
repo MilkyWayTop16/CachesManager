@@ -43,6 +43,12 @@ public class ConfirmDeleteListener implements Listener {
 
         if (!isConfirm && !isCancel) return;
 
+        if (!p.hasPermission("cachesmanager.deletecache")) {
+            plugin.getConfigManager().executeActions(p, "errors.no-permission");
+            e.setCancelled(true);
+            return;
+        }
+
         String base = e.getMessage().substring(0, e.getMessage().length() - (isConfirm ? 8 : 7)).trim();
         String cacheName = base.substring(16).trim();
 

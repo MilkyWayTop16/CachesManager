@@ -38,6 +38,7 @@ public class GiveKeyCommand {
         } else {
             cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
         }
+        cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         if (cacheName.isEmpty()) {
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.givekey");
             return true;

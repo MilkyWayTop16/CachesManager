@@ -14,12 +14,14 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.HexColors;
 
@@ -432,10 +434,8 @@ public class AnimationsManager implements Listener {
 
         try {
             WrappedChatComponent component;
-
             if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-                String displayName = item.getItemMeta().getDisplayName().trim();
-                String legacy = HexColors.translate(displayName);
+                String legacy = HexColors.translate(item.getItemMeta().getDisplayName().trim());
                 component = WrappedChatComponent.fromLegacyText(legacy);
             } else {
                 String translationKey = getTranslationKey(item);
@@ -444,13 +444,11 @@ public class AnimationsManager implements Listener {
                 component = WrappedChatComponent.fromJson(json);
             }
 
-            Optional<Object> optionalComponent = Optional.of(component.getHandle());
-
             List<WrappedDataValue> dataValues = new ArrayList<>();
             dataValues.add(new WrappedDataValue(
                     2,
                     WrappedDataWatcher.Registry.getChatComponentSerializer(true),
-                    optionalComponent
+                    Optional.of(component.getHandle())
             ));
 
             PacketContainer packet = ProtocolLibrary.getProtocolManager()
@@ -463,10 +461,17 @@ public class AnimationsManager implements Listener {
                 ProtocolLibrary.getProtocolManager().sendServerPacket(p, packet);
             }
         } catch (Exception e) {
-            String displayName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
-                    ? item.getItemMeta().getDisplayName().trim()
-                    : getTranslationKey(item).replace("item.minecraft.", "").replace("block.minecraft.", "").replace("_", " ");
-            String fallback = HexColors.translate(displayName);
+            // Fallback — только если пакет не сработал
+            String fallback;
+            if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+                fallback = HexColors.translate(item.getItemMeta().getDisplayName().trim());
+            } else {
+                String translationKey = getTranslationKey(item);
+                ChatColor rarityColor = getRarityColor(item.getType());
+                fallback = rarityColor + translationKey.replace("item.minecraft.", "")
+                        .replace("block.minecraft.", "")
+                        .replace("_", " ");
+            }
             hologram.setCustomName(fallback);
         }
     }
@@ -518,31 +523,67 @@ public class AnimationsManager implements Listener {
         if (task != null) task.cancel();
 
         Item phantomItem = phantomItems.remove(cacheName);
-        if (phantomItem != null && !phantomItem.isDead() && phantomItem.getWorld() != null) {
+        if (phantomItem != null && !phantomItem.isDead() && phantomItem.isValid() && phantomItem.getWorld() != null) {
             phantomItem.remove();
         }
+
         removeItemHologram(cacheName);
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (phantomItem != null && !phantomItem.isDead() && phantomItem.isValid() && phantomItem.getWorld() != null) {
+                    phantomItem.remove();
+                }
+            }
+        }.runTaskLater(plugin, 5L);
+    }
+
+    public void removeItemHologram(String cacheName) {
+        ArmorStand hologram = itemHolograms.remove(cacheName);
+        if (hologram != null && !hologram.isDead() && hologram.isValid() && hologram.getWorld() != null) {
+            hologram.setCustomName(null);
+            hologram.setCustomNameVisible(false);
+            hologram.remove();
+        }
     }
 
     public void forceFinishAnimationForPlayer(Player player) {
-        List<String> cacheNames = new ArrayList<>(animationTasks.keySet());
-        for (String cacheName : cacheNames) {
+        Set<String> activeCaches = new HashSet<>();
+        activeCaches.addAll(phantomItems.keySet());
+        activeCaches.addAll(itemHolograms.keySet());
+        activeCaches.addAll(animationTasks.keySet());
+
+        for (String cacheName : new ArrayList<>(activeCaches)) {
             BukkitTask task = animationTasks.remove(cacheName);
-            if (task != null) {
-                task.cancel();
-            }
+            if (task != null) task.cancel();
+
             CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
             if (cache != null) {
                 cache.setInUse(false);
             }
+
             ItemStack item = pendingLoot.remove(player.getUniqueId());
-            if (item != null && cache != null && cache.getLocation() != null) {
-                Location dropLoc = cache.getLocation().clone().add(0.5, 0.5, 0.5);
-                dropLoc.getWorld().dropItemNaturally(dropLoc, item);
+            if (item != null) {
+                if (player.isOnline() && player.getInventory().firstEmpty() != -1) {
+                    player.getInventory().addItem(item.clone());
+                } else if (cache != null && cache.getLocation() != null) {
+                    cache.getLocation().getWorld().dropItemNaturally(cache.getLocation().clone().add(0.5, 0.5, 0.5), item.clone());
+                } else if (player.isOnline()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
+                }
             }
+
             removePhantomItem(cacheName);
             removeItemHologram(cacheName);
         }
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupNearbyGhosts(player);
+            }
+        }.runTaskLater(plugin, 5L);
     }
 
     public void givePendingLootToPlayer(Player player) {
@@ -558,13 +599,6 @@ public class AnimationsManager implements Listener {
         }
     }
 
-    public void removeItemHologram(String cacheName) {
-        ArmorStand hologram = itemHolograms.remove(cacheName);
-        if (hologram != null && !hologram.isDead() && hologram.getWorld() != null) {
-            hologram.remove();
-        }
-    }
-
     public void removeAnimationArtifacts(String cacheName) {
         removePhantomItem(cacheName);
         removeItemHologram(cacheName);
@@ -572,28 +606,72 @@ public class AnimationsManager implements Listener {
 
     @EventHandler
     public void onChunkUnload(ChunkUnloadEvent event) {
-        try {
-            for (Map.Entry<String, Item> entry : new HashMap<>(phantomItems).entrySet()) {
-                String cacheName = entry.getKey();
-                Item phantomItem = entry.getValue();
-                if (phantomItem != null && !phantomItem.isDead() && phantomItem.getWorld().equals(event.getWorld()) &&
-                        phantomItem.getLocation().getChunk().equals(event.getChunk())) {
+        World world = event.getWorld();
+        int chunkX = event.getChunk().getX();
+        int chunkZ = event.getChunk().getZ();
+
+        for (Map.Entry<String, Item> entry : new HashMap<>(phantomItems).entrySet()) {
+            String cacheName = entry.getKey();
+            Item phantomItem = entry.getValue();
+
+            if (phantomItem == null || phantomItem.isDead() || phantomItem.getWorld() == null) continue;
+            if (!phantomItem.getWorld().equals(world)) continue;
+
+            try {
+                Location loc = phantomItem.getLocation();
+                if (loc == null) continue;
+
+                if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
                     CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-                    if (cache != null && cache.isInUse()) continue;
-                    removePhantomItem(cacheName);
+                    if (cache == null || !cache.isInUse()) {
+                        removePhantomItem(cacheName);
+                    }
                 }
+            } catch (Exception ignored) {
+                removePhantomItem(cacheName);
             }
-            for (Map.Entry<String, ArmorStand> entry : new HashMap<>(itemHolograms).entrySet()) {
-                String cacheName = entry.getKey();
-                ArmorStand hologram = entry.getValue();
-                if (hologram != null && !hologram.isDead() && hologram.getWorld().equals(event.getWorld()) &&
-                        hologram.getLocation().getChunk().equals(event.getChunk())) {
+        }
+
+        for (Map.Entry<String, ArmorStand> entry : new HashMap<>(itemHolograms).entrySet()) {
+            String cacheName = entry.getKey();
+            ArmorStand hologram = entry.getValue();
+
+            if (hologram == null || hologram.isDead() || hologram.getWorld() == null) continue;
+            if (!hologram.getWorld().equals(world)) continue;
+
+            try {
+                Location loc = hologram.getLocation();
+                if (loc == null) continue;
+
+                if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
                     CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-                    if (cache != null && cache.isInUse()) continue;
-                    removeItemHologram(cacheName);
+                    if (cache == null || !cache.isInUse()) {
+                        removeItemHologram(cacheName);
+                    }
                 }
+            } catch (Exception ignored) {
+                removeItemHologram(cacheName);
             }
-        } catch (Exception ignored) {}
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        forceFinishAnimationForPlayer(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
+        givePendingLootToPlayer(player);
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupNearbyGhosts(player);
+            }
+        }.runTaskLater(plugin, 10L);
     }
 
     private void spawnParticleSafely(World world, Particle particle, Location loc, int amount,
@@ -643,7 +721,6 @@ public class AnimationsManager implements Listener {
             BukkitTask task = animationTasks.remove(cacheName);
             if (task != null) task.cancel();
         }
-
         animationTasks.clear();
 
         for (String cacheName : new ArrayList<>(phantomItems.keySet())) {
@@ -652,10 +729,32 @@ public class AnimationsManager implements Listener {
         for (String cacheName : new ArrayList<>(itemHolograms.keySet())) {
             removeItemHologram(cacheName);
         }
+
+        phantomItems.clear();
+        itemHolograms.clear();
     }
 
     public void reloadAnimations() {
+        clearAllAnimations();
         loadAnimations();
+    }
+
+    private void cleanupNearbyGhosts(Player player) {
+        if (player == null || player.getWorld() == null) return;
+        Location center = player.getLocation();
+        for (Entity entity : center.getWorld().getNearbyEntities(center, 50, 50, 50)) {
+            if (entity instanceof ArmorStand) {
+                ArmorStand stand = (ArmorStand) entity;
+                if (!stand.isVisible() || stand.getCustomName() == null) {
+                    stand.remove();
+                }
+            } else if (entity instanceof Item) {
+                Item item = (Item) entity;
+                if (item.getPickupDelay() > 1000) {
+                    item.remove();
+                }
+            }
+        }
     }
 
     private static class SoundEntry {

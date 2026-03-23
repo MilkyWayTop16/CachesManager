@@ -27,6 +27,7 @@ public class DeleteCacheCommand {
         }
 
         String cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         Player p = (Player) sender;
 
         if (cacheName.isEmpty()) {

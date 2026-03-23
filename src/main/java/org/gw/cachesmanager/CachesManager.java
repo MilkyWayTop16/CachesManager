@@ -106,19 +106,17 @@ public class CachesManager extends JavaPlugin {
             lootHistoryManager.saveAll();
         }
 
-        console("&#ffff00◆ CachesManager &f| Инициализация систем голограмм и движка анимаций...");
+        console("&#ffff00◆ CachesManager &f| Перезагрузка анимаций...");
         animationsManager.reloadAnimations();
 
-        console("&#ffff00◆ CachesManager &f| Перезагрузка систем меню...");
+        console("&#ffff00◆ CachesManager &f| Перезагрузка меню...");
         if (menuManager != null) menuManager.reload();
+
         if (lootHistoryManager != null) lootHistoryManager.reload();
 
-        console("&#ffff00◆ CachesManager &f| Подготовка ядра тайников...");
+        console("&#ffff00◆ CachesManager &f| Перезагрузка тайников...");
         cacheManager.removeAllHolograms();
-        cacheManager.getCaches().clear();
-
-        console("&#ffff00◆ CachesManager &f| Сборка всех менюшек тайников...");
-        Bukkit.getScheduler().runTaskLater(this, cacheManager::loadCaches, 5L);
+        cacheManager.loadCaches();
 
         if (updateChecker != null) updateChecker.reload();
     }

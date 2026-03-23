@@ -30,6 +30,7 @@ public class CacheManager {
     private final StatsManager statsManager;
     private final LootHistoryManager lootHistoryManager;
     private final Map<String, Cache> caches = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastOpenTime = new ConcurrentHashMap<>();
     private volatile boolean isReloading = false;
 
     public CacheManager(CachesManager plugin, ConfigManager configManager, HologramManager hologramManager,
@@ -55,35 +56,26 @@ public class CacheManager {
 
         List<String> cacheNames = configManager.getCacheNames();
 
-        new BukkitRunnable() {
-            int index = 0;
+        for (String cacheName : cacheNames) {
+            Cache cache = new Cache(cacheName);
+            caches.put(cacheName, cache);
 
-            @Override
-            public void run() {
-                int batch = Math.min(10, cacheNames.size() - index);
-                for (int i = 0; i < batch; i++) {
-                    String cacheName = cacheNames.get(index++);
-                    Cache cache = new Cache(cacheName);
-                    caches.put(cacheName, cache);
-
-                    if (cache.getLocation() != null && cache.isHologramEnabled() && hologramManager != null) {
-                        hologramManager.createHologram(cacheName, cache.getLocation(), cache.getHologramText());
-                    }
-                    plugin.getMenuManager().initializeCachePageLoot(cacheName);
-                }
-
-                if (index >= cacheNames.size()) {
-                    isReloading = false;
-                    cancel();
-                    plugin.log("&#ffff00◆ CachesManager &f| Загружено " + caches.size() + " тайников");
-                }
+            if (cache.getLocation() != null && cache.isHologramEnabled() && hologramManager != null) {
+                hologramManager.createHologram(cacheName, cache.getLocation(), cache.getHologramText());
             }
-        }.runTaskTimer(plugin, 0L, 1L);
+            if (plugin.getMenuManager() != null) {
+                plugin.getMenuManager().initializeCachePageLoot(cacheName);
+            }
+        }
+
+        isReloading = false;
+        plugin.log("&#ffff00◆ CachesManager &f| Загружено " + caches.size() + " тайников");
     }
 
     public boolean createCache(String cacheName) {
-        if (caches.containsKey(cacheName)) {
-            plugin.log("Тайник с таким именем уже существует: &#ffff00" + cacheName);
+        cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
+        if (cacheName.isEmpty() || caches.containsKey(cacheName)) {
+            plugin.log("Некорректное или уже существующее имя тайника: &#ffff00" + cacheName);
             return false;
         }
         configManager.createCacheConfig(cacheName);
@@ -98,27 +90,10 @@ public class CacheManager {
         return true;
     }
 
-    public boolean deleteCache(String cacheName) {
-        Cache cache = caches.remove(cacheName);
-        if (cache != null) {
-            cache.removeHologram();
-            if (plugin.getMenuManager() != null) {
-                plugin.getMenuManager().clearCacheForCache(cacheName);
-            }
-            if (plugin.getLootHistoryManager() != null) {
-                plugin.getLootHistoryManager().deleteHistory(cacheName);
-            }
-            configManager.deleteCacheConfig(cacheName);
-            plugin.log("Тайник успешно удалён: &#ffff00" + cacheName);
-            return true;
-        }
-        plugin.log("Не удалось удалить тайник (не найден): &#ffff00" + cacheName);
-        return false;
-    }
-
     public boolean renameCache(String oldName, String newName) {
-        if (caches.containsKey(newName)) {
-            plugin.log("Не удалось переименовать — имя уже существует: &#ffff00" + newName);
+        newName = plugin.getConfigManager().sanitizeCacheName(newName);
+        if (newName.isEmpty() || caches.containsKey(newName)) {
+            plugin.log("Некорректное или уже существующее имя тайника: &#ffff00" + newName);
             return false;
         }
         Cache cache = caches.remove(oldName);
@@ -146,6 +121,24 @@ public class CacheManager {
 
         plugin.log("Тайник переименован: &#ffff00" + oldName + " &f→ &#ffff00" + newName);
         return true;
+    }
+
+    public boolean deleteCache(String cacheName) {
+        Cache cache = caches.remove(cacheName);
+        if (cache != null) {
+            cache.removeHologram();
+            if (plugin.getMenuManager() != null) {
+                plugin.getMenuManager().clearCacheForCache(cacheName);
+            }
+            if (plugin.getLootHistoryManager() != null) {
+                plugin.getLootHistoryManager().deleteHistory(cacheName);
+            }
+            configManager.deleteCacheConfig(cacheName);
+            plugin.log("Тайник успешно удалён: &#ffff00" + cacheName);
+            return true;
+        }
+        plugin.log("Не удалось удалить тайник (не найден): &#ffff00" + cacheName);
+        return false;
     }
 
     public Cache getCache(String cacheName) {
@@ -452,6 +445,13 @@ public class CacheManager {
         }
 
         public boolean open(Player player) {
+            long now = System.currentTimeMillis();
+            long last = lastOpenTime.getOrDefault(player.getUniqueId(), 0L);
+            if (now - last < 500) {
+                return false;
+            }
+            lastOpenTime.put(player.getUniqueId(), now);
+
             if (!inUse.compareAndSet(false, true)) {
                 Map<String, String> ph = new HashMap<>();
                 ph.put("name-cache", getDisplayName());

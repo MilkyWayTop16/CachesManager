@@ -410,7 +410,7 @@ public class CacheModeListener implements Listener {
     }
 
     private void handleRenameModeChat(Player player, String cacheName, String newNameRaw) {
-        String newName = newNameRaw.trim();
+        String newName = plugin.getConfigManager().sanitizeCacheName(newNameRaw.trim());
 
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
         Map<String, String> ph = new HashMap<>();

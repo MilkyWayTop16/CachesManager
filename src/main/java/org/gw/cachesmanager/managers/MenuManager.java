@@ -18,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import org.gw.cachesmanager.CachesManager;
@@ -483,12 +484,15 @@ public class MenuManager implements Listener {
         String cacheName = playerCaches.get(id);
         Integer page = playerPages.get(id);
         if (menuFile == null || cacheName == null || page == null) return;
+
         FileConfiguration cfg = configManager.loadMenuConfig(menuFile);
         if (cfg == null) return;
+
         List<Integer> lootSlots = parseSlotRange(cfg.getStringList("loot.slots"), event.getInventory().getSize());
         boolean isLootMenu = "loot-menu.yml".equals(menuFile);
         boolean isChanceMenu = "chance-menu.yml".equals(menuFile);
         boolean clickedTop = event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getTopInventory());
+
         if (!clickedTop) {
             if (isLootMenu) {
                 event.setCancelled(false);
@@ -498,29 +502,50 @@ public class MenuManager implements Listener {
             }
             return;
         }
+
         int slot = event.getSlot();
         if (slot < 0 || slot >= event.getInventory().getSize()) {
             event.setCancelled(true);
             return;
         }
+
         if (isLootMenu && lootSlots.contains(slot)) {
-            if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT ||
-                    event.getClick() == ClickType.NUMBER_KEY || event.getClick() == ClickType.DOUBLE_CLICK) {
-                event.setCancelled(true);
+            ClickType click = event.getClick();
+            if (click == ClickType.LEFT ||
+                    click == ClickType.RIGHT ||
+                    click == ClickType.SHIFT_LEFT ||
+                    click == ClickType.SHIFT_RIGHT ||
+                    click == ClickType.DROP ||
+                    click == ClickType.CONTROL_DROP ||
+                    click == ClickType.MIDDLE ||
+                    click == ClickType.SWAP_OFFHAND) {
+                event.setCancelled(false);
+                Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, event.getInventory()), 1L);
                 return;
             }
-            event.setCancelled(false);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, event.getInventory()), 1L);
+            event.setCancelled(true);
             return;
         }
+
         if (isChanceMenu && lootSlots.contains(slot)) {
+            event.setCancelled(true);
             handleChanceClick(p, cfg, cacheName, event, page, lootSlots);
             return;
         }
+
         if (!lootSlots.contains(slot)) {
             handleNonLootClick(p, cfg, cacheName, event, page);
         }
         event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        Player p = (Player) event.getWhoClicked();
+        String menuFile = playerMenus.get(p.getUniqueId());
+        if (menuFile != null && ("loot-menu.yml".equals(menuFile) || "chance-menu.yml".equals(menuFile))) {
+            event.setCancelled(true);
+        }
     }
 
     private void handleToggleKeyGlow(Player p, int idx) {
@@ -1008,6 +1033,7 @@ public class MenuManager implements Listener {
         playerMenus.clear();
         playerCaches.clear();
         playerPages.clear();
+
         slotRangeCache.clear();
         cachePageLoot.clear();
         staticItemCache.clear();

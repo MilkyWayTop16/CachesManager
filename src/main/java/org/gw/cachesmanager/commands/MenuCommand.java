@@ -37,6 +37,9 @@ public class MenuCommand {
             cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
         }
 
+        cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
+        menuFile = plugin.getConfigManager().sanitizeMenuFile(menuFile);
+
         if (cacheName.isEmpty()) {
             plugin.getConfigManager().executeActions(player, "help.menu");
             return true;

@@ -27,6 +27,7 @@ public class CreateCacheCommand {
 
         Player player = (Player) sender;
         String cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
 
         if (cacheName.isEmpty()) {
             plugin.getConfigManager().executeActions(player, "help.createcache");

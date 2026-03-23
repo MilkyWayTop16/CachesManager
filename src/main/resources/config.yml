@@ -54,17 +54,6 @@ settings:
     # (Записи старше этого значения автоматически удаляются при загрузке)
     max-days: 90
 
-  # Система голограмм над тайниками
-  hologram-provider:
-    # Доступные варианты:
-    # decent   — использовать DecentHolograms (старый, но стабильный)
-    # fancy    — использовать FancyHolograms (современный, на Display Entities, меньше лагов)
-    # auto     — автоматически определить (Fancy в приоритете)
-    #
-    # При режиме "auto" плагин сам определит, что установлено на сервере,
-    # и **изменит** это значение в файле (чтобы при следующем запуске не проверять заново)
-    provider: auto
-
 # Разные события
 #
 # Доступные действия для любого списка:
@@ -412,7 +401,6 @@ actions:
     empty-caches:
       - "[message] &#FB8808▶ Стоп! &fТайники &#FB8808не были &fсозданы!"
       - "[sound] BLOCK_ANVIL_LAND"
-      -
   reload:
     success:
       - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
@@ -499,9 +487,9 @@ actions:
   update:
     available:
       - "[message] "
-      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня &#00FF5Aпоявилась новая &fверсия &#ffff00{latest-version}&f, а текущая — &#ffff00{current-version}&f, так что советую обновить меня)"
+      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня &#00FF5Aпоявилась новая &fверсия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что советую обновить меня)"
       - "[message] "
       - "[message] &#00FF5A◆ &fСкачать новую версию можно тут: &#00FF5A{download-link}"
       - "[message] "
-      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#ffff00{latest-version}&f, а текущая — &#ffff00{current-version}&f, так что можно обновить тут: &#ffff00{download-link}"
+      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что можно обновить тут: &#ffff00{download-link}"
       - "[sound] ENTITY_PLAYER_LEVELUP"

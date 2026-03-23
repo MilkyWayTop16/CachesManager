@@ -725,6 +725,28 @@ public class ConfigManager {
         return config.getBoolean("settings.bstats.enabled", true);
     }
 
+    public String sanitizeCacheName(String name) {
+        if (name == null || name.trim().isEmpty()) return "";
+        String s = name.trim()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replace("..", "_")
+                .replace("../", "_")
+                .replace("./", "_")
+                .replaceAll("^[.]+", "")
+                .replaceAll("[.]+$", "");
+        if (s.length() > 64 || s.isEmpty()) return "";
+        return s;
+    }
+
+    public String sanitizeMenuFile(String file) {
+        if (file == null) return "global-menu.yml";
+        String s = file.trim();
+        if (!s.toLowerCase().endsWith(".yml")) s += ".yml";
+        s = new java.io.File(s).getName();
+        if (s.length() > 64 || s.isEmpty() || !s.toLowerCase().endsWith(".yml")) return "global-menu.yml";
+        return s;
+    }
+
     private void sendConfirmationMessage(Player player, String line, String cacheName) {
         if (player == null) return;
 
