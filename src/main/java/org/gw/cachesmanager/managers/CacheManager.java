@@ -59,6 +59,7 @@ public class CacheManager {
         for (String cacheName : cacheNames) {
             Cache cache = new Cache(cacheName);
             caches.put(cacheName, cache);
+            caches.put(cacheName, cache);
 
             if (cache.getLocation() != null && cache.isHologramEnabled() && hologramManager != null) {
                 hologramManager.createHologram(cacheName, cache.getLocation(), cache.getHologramText());

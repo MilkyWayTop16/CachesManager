@@ -461,7 +461,6 @@ public class AnimationsManager implements Listener {
                 ProtocolLibrary.getProtocolManager().sendServerPacket(p, packet);
             }
         } catch (Exception e) {
-            // Fallback — только если пакет не сработал
             String fallback;
             if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
                 fallback = HexColors.translate(item.getItemMeta().getDisplayName().trim());
