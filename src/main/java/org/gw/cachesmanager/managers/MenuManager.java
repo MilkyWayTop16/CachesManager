@@ -1,8 +1,10 @@
 package org.gw.cachesmanager.managers;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
@@ -19,11 +21,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import net.md_5.bungee.api.chat.TextComponent;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.listeners.*;
 import org.gw.cachesmanager.utils.HexColors;
+import org.gw.cachesmanager.utils.PlaceholderAPIHook;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -40,9 +46,9 @@ public class MenuManager implements Listener {
     private final StatsManager statsManager;
     private final LootHistoryManager lootHistoryManager;
 
-    private final Map<UUID, String> playerMenus = new HashMap<>();
-    private final Map<UUID, String> playerCaches = new HashMap<>();
-    private final Map<UUID, Integer> playerPages = new HashMap<>();
+    private final Map<UUID, String> playerMenus = new ConcurrentHashMap<>();
+    private final Map<UUID, String> playerCaches = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> playerPages = new ConcurrentHashMap<>();
     private final Map<String, List<Integer>> slotRangeCache = new HashMap<>();
     private final Map<String, Map<Integer, List<ItemStack>>> cachePageLoot = new HashMap<>();
     private final Map<String, BiConsumer<Player, Integer>> specialHandlers = new HashMap<>();
@@ -132,19 +138,21 @@ public class MenuManager implements Listener {
         int maxPages = configManager.loadMenuConfig("loot-menu.yml").getInt("menu.max-pages", 5);
         page = Math.max(1, Math.min(page, maxPages));
 
-        String title = HexColors.translate(menuConfig.getString("menu.title")
+        String titleRaw = menuConfig.getString("menu.title", "")
                 .replace("{name-cache}", getCacheDisplayName(cacheName))
                 .replace("{current-page}", String.valueOf(page))
-                .replace("{max-pages}", String.valueOf(maxPages)));
+                .replace("{max-pages}", String.valueOf(maxPages));
+        titleRaw = PlaceholderAPIHook.parse(player, titleRaw);
+        String title = HexColors.translate(titleRaw);
 
         Inventory inventory = Bukkit.createInventory(player, size, title);
 
-        fillMenuItems(inventory, menuConfig, cacheName, menuFile);
+        fillMenuItems(player, inventory, menuConfig, cacheName, menuFile);
 
         if ("history-menu.yml".equals(menuFile)) {
-            fillHistoryItems(inventory, cacheName, page);
+            fillHistoryItems(player, inventory, cacheName, page);
         } else {
-            fillLootItems(inventory, menuConfig, cacheName, page, menuFile);
+            fillLootItems(player, inventory, menuConfig, cacheName, page, menuFile);
         }
 
         player.openInventory(inventory);
@@ -158,7 +166,10 @@ public class MenuManager implements Listener {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    if (!player.getOpenInventory().getTopInventory().equals(inventory)) cancel();
+                    if (player.getOpenInventory() == null || !inventory.equals(player.getOpenInventory().getTopInventory())) {
+                        cancel();
+                        return;
+                    }
                     updateMenu(player, inventory, menuFile, cacheName, finalPage);
                 }
             }.runTaskTimer(plugin, 0L, updateInterval);
@@ -174,7 +185,7 @@ public class MenuManager implements Listener {
         return cache != null ? cache.getDisplayName() : cacheName;
     }
 
-    private void fillMenuItems(Inventory inventory, FileConfiguration menuConfig, String cacheName, String menuFile) {
+    private void fillMenuItems(Player player, Inventory inventory, FileConfiguration menuConfig, String cacheName, String menuFile) {
         ConfigurationSection itemsSection = menuConfig.getConfigurationSection("items");
         if (itemsSection == null) return;
 
@@ -214,7 +225,7 @@ public class MenuManager implements Listener {
                 }
             }
 
-            ItemStack item = createMenuItem(section, cacheName);
+            ItemStack item = createMenuItem(player, section, cacheName);
             if (section.contains("slot")) {
                 int slot = section.getInt("slot");
                 if (slot >= 0 && slot < inventory.getSize() && !lootSlots.contains(slot)) {
@@ -230,7 +241,7 @@ public class MenuManager implements Listener {
         }
     }
 
-    private void fillLootItems(Inventory inventory, FileConfiguration menuConfig, String cacheName, int page, String menuFile) {
+    private void fillLootItems(Player player, Inventory inventory, FileConfiguration menuConfig, String cacheName, int page, String menuFile) {
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
         if (cache == null) return;
 
@@ -248,19 +259,23 @@ public class MenuManager implements Listener {
             ItemStack item = loot.get(i);
             if (item == null) continue;
             ItemStack display = item.clone();
-            if (isChance && lootSettings != null) applyChanceLore(display, lootSettings, cache, (page - 1) * perPage + i);
+            if (isChance && lootSettings != null) applyChanceLore(player, display, lootSettings, cache, (page - 1) * perPage + i);
             inventory.setItem(lootSlots.get(i), display);
         }
     }
 
-    private void applyChanceLore(ItemStack item, ConfigurationSection settings, CacheManager.Cache cache, int index) {
+    private void applyChanceLore(Player player, ItemStack item, ConfigurationSection settings, CacheManager.Cache cache, int index) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.removeIf(l -> l.contains("{chance}"));
         List<String> add = settings.getStringList("lore").stream()
-                .map(s -> HexColors.translate(s.replace("{chance}", String.valueOf(
-                        index < cache.getLootWithChances().size() ? cache.getLootWithChances().get(index).getValue() : 50))))
+                .map(s -> {
+                    String raw = s.replace("{chance}", String.valueOf(
+                            index < cache.getLootWithChances().size() ? cache.getLootWithChances().get(index).getValue() : 50));
+                    raw = PlaceholderAPIHook.parse(player, raw);
+                    return HexColors.translate(raw);
+                })
                 .collect(Collectors.toList());
         lore.addAll(add);
         meta.setLore(lore);
@@ -273,12 +288,12 @@ public class MenuManager implements Listener {
 
         invalidateStaticCache(cacheName);
 
-        fillMenuItems(inventory, cfg, cacheName, menuFile);
+        fillMenuItems(player, inventory, cfg, cacheName, menuFile);
 
         if ("history-menu.yml".equals(menuFile)) {
-            fillHistoryItems(inventory, cacheName, page);
+            fillHistoryItems(player, inventory, cacheName, page);
         } else {
-            fillLootItems(inventory, cfg, cacheName, page, menuFile);
+            fillLootItems(player, inventory, cfg, cacheName, page, menuFile);
         }
     }
 
@@ -303,7 +318,7 @@ public class MenuManager implements Listener {
 
         ItemStack display = item.clone();
         ConfigurationSection settings = cfg.getConfigurationSection("loot-item-settings");
-        if (settings != null) applyChanceLore(display, settings, cache, (page - 1) * lootSlots.size() + idx);
+        if (settings != null) applyChanceLore(player, display, settings, cache, (page - 1) * lootSlots.size() + idx);
         inventory.setItem(slot, display);
     }
 
@@ -313,31 +328,70 @@ public class MenuManager implements Listener {
         if (meta == null || base64Value == null || base64Value.isEmpty()) return head;
 
         try {
-            Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
-            Class<?> propertyClass = Class.forName("com.mojang.authlib.properties.Property");
+            Class<?> playerProfileClass = Class.forName("org.bukkit.profile.PlayerProfile");
+            Class<?> playerTexturesClass = Class.forName("org.bukkit.profile.PlayerTextures");
 
-            Object profile = gameProfileClass.getConstructor(UUID.class, String.class)
-                    .newInstance(UUID.randomUUID(), null);
+            Object profile = Bukkit.class.getMethod("createPlayerProfile", UUID.class).invoke(null, UUID.randomUUID());
+            Object textures = playerProfileClass.getMethod("getTextures").invoke(profile);
 
-            Object property = propertyClass.getConstructor(String.class, String.class)
-                    .newInstance("textures", base64Value);
+            java.net.URL url = new java.net.URL("https://textures.minecraft.net/texture/" + base64Value);
+            if (base64Value.startsWith("http")) {
+                url = new java.net.URL(base64Value);
+            }
 
-            Object properties = gameProfileClass.getMethod("getProperties").invoke(profile);
-            properties.getClass().getMethod("put", Object.class, Object.class)
-                    .invoke(properties, "textures", property);
-
-            Field profileField = meta.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            profileField.set(meta, profile);
+            playerTexturesClass.getMethod("setSkin", java.net.URL.class).invoke(textures, url);
+            playerProfileClass.getMethod("setTextures", playerTexturesClass).invoke(profile, textures);
+            SkullMeta.class.getMethod("setOwnerProfile", playerProfileClass).invoke(meta, profile);
         } catch (Exception e) {
-            plugin.console("Ошибка создания кастомной головы (Base64)");
+            try {
+                Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
+                Class<?> propertyClass = Class.forName("com.mojang.authlib.properties.Property");
+
+                Object profile = gameProfileClass.getConstructor(UUID.class, String.class)
+                        .newInstance(UUID.randomUUID(), null);
+
+                Object property = propertyClass.getConstructor(String.class, String.class)
+                        .newInstance("textures", base64Value);
+
+                Object properties = gameProfileClass.getMethod("getProperties").invoke(profile);
+                properties.getClass().getMethod("put", Object.class, Object.class)
+                        .invoke(properties, "textures", property);
+
+                Field profileField = meta.getClass().getDeclaredField("profile");
+                profileField.setAccessible(true);
+                profileField.set(meta, profile);
+            } catch (Exception ex) {
+                try {
+                    Field profileField = meta.getClass().getDeclaredField("resolvableProfile");
+                    profileField.setAccessible(true);
+
+                    Class<?> resolvableProfileClass = Class.forName("net.minecraft.world.item.component.ResolvableProfile");
+                    Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
+                    Class<?> propertyClass = Class.forName("com.mojang.authlib.properties.Property");
+
+                    Object profile = gameProfileClass.getConstructor(UUID.class, String.class)
+                            .newInstance(UUID.randomUUID(), null);
+
+                    Object property = propertyClass.getConstructor(String.class, String.class)
+                            .newInstance("textures", base64Value);
+
+                    Object properties = gameProfileClass.getMethod("getProperties").invoke(profile);
+                    properties.getClass().getMethod("put", Object.class, Object.class)
+                            .invoke(properties, "textures", property);
+
+                    Object resolvableProfile = resolvableProfileClass.getConstructor(gameProfileClass).newInstance(profile);
+                    profileField.set(meta, resolvableProfile);
+                } catch (Exception ex2) {
+                    plugin.console("Ошибка создания кастомной головы (Base64)");
+                }
+            }
         }
 
         head.setItemMeta(meta);
         return head;
     }
 
-    private ItemStack createMenuItem(ConfigurationSection section, String cacheName) {
+    private ItemStack createMenuItem(Player player, ConfigurationSection section, String cacheName) {
         String cacheKey = section.getName() + "|" + cacheName;
         if (staticItemCache.containsKey(cacheKey)) {
             return staticItemCache.get(cacheKey).clone();
@@ -370,6 +424,7 @@ public class MenuManager implements Listener {
                 String raw = section.getString("display-name");
                 return cache != null ? applyCachePlaceholders(raw, cache) : raw;
             });
+            name = PlaceholderAPIHook.parse(player, name);
             meta.setDisplayName(HexColors.translate(name));
         }
 
@@ -379,7 +434,10 @@ public class MenuManager implements Listener {
                 List<String> raw = new ArrayList<>(section.getStringList("lore"));
                 return cache != null ? applyCachePlaceholdersToLore(raw, cache) : raw;
             });
-            meta.setLore(HexColors.translate(lore));
+            List<String> parsedLore = lore.stream()
+                    .map(line -> PlaceholderAPIHook.parse(player, line))
+                    .collect(Collectors.toList());
+            meta.setLore(HexColors.translate(parsedLore));
         }
 
         if (section.contains("enchantments")) {
@@ -640,35 +698,116 @@ public class MenuManager implements Listener {
             String processed = rawCmd.replace("{name-cache}", cache.getDisplayName())
                     .replace("{player}", p.getName()).trim();
 
-            if (processed.startsWith("[increase-chance]")) {
-                int delta = extractDelta(processed, 1);
-                handleChanceChange(p, index, true, delta);
-                continue;
-            }
-            if (processed.startsWith("[reduce-chance]")) {
-                int delta = extractDelta(processed, 1);
-                handleChanceChange(p, index, false, delta);
-                continue;
+            processed = PlaceholderAPIHook.parse(p, processed);
+
+            if (processed.startsWith("[")) {
+                int closingBracket = processed.indexOf("]");
+                if (closingBracket != -1) {
+                    String actionTag = processed.substring(0, closingBracket + 1).toLowerCase();
+                    String rawValue = processed.substring(closingBracket + 1).trim();
+
+                    switch (actionTag) {
+                        case "[increase-chance]" -> {
+                            int delta = extractDelta(processed, 1);
+                            handleChanceChange(p, index, true, delta);
+                        }
+                        case "[reduce-chance]" -> {
+                            int delta = extractDelta(processed, 1);
+                            handleChanceChange(p, index, false, delta);
+                        }
+                        case "[open-menu]" -> openMenu(p, cacheName, rawValue, 1);
+                        case "[message]" -> {
+                            String message = rawValue.startsWith(" ") ? rawValue.substring(1) : rawValue;
+                            p.sendMessage(HexColors.translate(message));
+                        }
+                        case "[message-console]" -> plugin.console(HexColors.translate(rawValue));
+                        case "[broadcast]" -> Bukkit.broadcastMessage(HexColors.translate(rawValue));
+                        case "[actionbar]" -> p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                                TextComponent.fromLegacyText(HexColors.translate(rawValue)));
+                        case "[console-command]" -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), rawValue);
+                        case "[player-command]" -> Bukkit.dispatchCommand(p, rawValue);
+                        case "[sound]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 1) {
+                                try {
+                                    Sound sound = Sound.valueOf(parts[0].toUpperCase());
+                                    float volume = parts.length > 1 ? Float.parseFloat(parts[1]) : 1.0f;
+                                    float pitch = parts.length > 2 ? Float.parseFloat(parts[2]) : 1.0f;
+                                    p.playSound(p.getLocation(), sound, volume, pitch);
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        case "[title]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 1) {
+                                String title = HexColors.translate(parts[0]);
+                                int fadeIn = parts.length > 1 ? Integer.parseInt(parts[1]) : 10;
+                                int stay = parts.length > 2 ? Integer.parseInt(parts[2]) : 70;
+                                int fadeOut = parts.length > 3 ? Integer.parseInt(parts[3]) : 20;
+                                p.sendTitle(title, "", fadeIn, stay, fadeOut);
+                            }
+                        }
+                        case "[subtitle]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 1) {
+                                String subtitle = HexColors.translate(parts[0]);
+                                int fadeIn = parts.length > 1 ? Integer.parseInt(parts[1]) : 10;
+                                int stay = parts.length > 2 ? Integer.parseInt(parts[2]) : 70;
+                                int fadeOut = parts.length > 3 ? Integer.parseInt(parts[3]) : 20;
+                                p.sendTitle("", subtitle, fadeIn, stay, fadeOut);
+                            }
+                        }
+                        case "[effect]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 1) {
+                                try {
+                                    PotionEffectType type = PotionEffectType.getByName(parts[0].toUpperCase());
+                                    int duration = parts.length > 1 ? Integer.parseInt(parts[1]) * 20 : 600;
+                                    int amplifier = parts.length > 2 ? Integer.parseInt(parts[2]) - 1 : 0;
+                                    p.addPotionEffect(new PotionEffect(type, duration, amplifier));
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        case "[teleport]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 4) {
+                                try {
+                                    double x = Double.parseDouble(parts[0]);
+                                    double y = Double.parseDouble(parts[1]);
+                                    double z = Double.parseDouble(parts[2]);
+                                    World world = Bukkit.getWorld(parts[3]);
+                                    if (world != null) p.teleport(new Location(world, x, y, z));
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        case "[give-item]" -> {
+                            String[] parts = rawValue.split(" ");
+                            if (parts.length >= 2) {
+                                try {
+                                    Material material = Material.valueOf(parts[0].toUpperCase());
+                                    int amount = Integer.parseInt(parts[1]);
+                                    p.getInventory().addItem(new ItemStack(material, amount));
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        default -> {
+                            BiConsumer<Player, Integer> handler = specialHandlers.get(actionTag);
+                            if (handler != null) {
+                                handler.accept(p, index);
+                            } else {
+                                Bukkit.dispatchCommand(p, processed);
+                            }
+                        }
+                    }
+                    continue;
+                }
             }
 
             BiConsumer<Player, Integer> handler = specialHandlers.get(processed.toLowerCase());
             if (handler != null) {
                 handler.accept(p, index);
-                continue;
-            }
-
-            if (processed.startsWith("[open-menu]")) {
-                String file = processed.replace("[open-menu]", "").trim();
-                openMenu(p, cacheName, file, 1);
-            } else if (processed.startsWith("[sound]")) {
-                String[] parts = processed.replace("[sound]", "").trim().split(" ");
-                if (parts.length >= 3) {
-                    try {
-                        p.playSound(p.getLocation(), Sound.valueOf(parts[0]), Float.parseFloat(parts[1]), Float.parseFloat(parts[2]));
-                    } catch (Exception ignored) {}
-                }
             } else {
-                plugin.getServer().dispatchCommand(p, processed);
+                Bukkit.dispatchCommand(p, processed);
             }
         }
     }
@@ -810,6 +949,7 @@ public class MenuManager implements Listener {
         FileConfiguration cfg = configManager.loadMenuConfig("chance-menu.yml");
         if (cfg == null) return 0;
         List<Integer> slots = parseSlotRange(cfg.getStringList("loot.slots"), invSize);
+        if (slots.isEmpty()) return 0;
         int perPage = slots.size();
         int slotIdx = itemIndex % perPage;
         return slotIdx < slots.size() ? slots.get(slotIdx) : 0;
@@ -991,7 +1131,7 @@ public class MenuManager implements Listener {
         cachePageLoot.computeIfAbsent(cacheName, k -> new HashMap<>()).put(page, currentLoot);
     }
 
-    private void fillHistoryItems(Inventory inventory, String cacheName, int page) {
+    private void fillHistoryItems(Player player, Inventory inventory, String cacheName, int page) {
         Deque<LootHistoryManager.HistoryEntry> history = lootHistoryManager.getHistory(cacheName);
         FileConfiguration cfg = configManager.loadMenuConfig("history-menu.yml");
         if (cfg == null) return;
@@ -1015,9 +1155,12 @@ public class MenuManager implements Listener {
                 if (meta != null) {
                     List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                     List<String> add = settings.getStringList("lore").stream()
-                            .map(s -> HexColors.translate(s
-                                    .replace("{dropped-by}", entry.playerName)
-                                    .replace("{dropped-at}", entry.formattedTime)))
+                            .map(s -> {
+                                String raw = s.replace("{dropped-by}", entry.playerName)
+                                        .replace("{dropped-at}", entry.formattedTime);
+                                raw = PlaceholderAPIHook.parse(player, raw);
+                                return HexColors.translate(raw);
+                            })
                             .collect(Collectors.toList());
                     lore.addAll(add);
                     meta.setLore(lore);

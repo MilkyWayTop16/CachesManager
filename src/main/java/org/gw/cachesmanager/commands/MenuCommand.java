@@ -26,15 +26,23 @@ public class MenuCommand {
         }
 
         Player player = (Player) sender;
-
         String cacheName;
         String menuFile = "global-menu.yml";
 
-        if (args.length >= 3 && args[args.length - 1].toLowerCase().endsWith(".yml")) {
+        String lastArg = args[args.length - 1];
+        if (lastArg.toLowerCase().endsWith(".yml")) {
             cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1)).trim();
-            menuFile = args[args.length - 1];
+            menuFile = lastArg;
         } else {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+            String fullJoined = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+            if (plugin.getCacheManager().getCache(plugin.getConfigManager().sanitizeCacheName(fullJoined)) != null) {
+                cacheName = fullJoined;
+            } else if (args.length >= 3) {
+                cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1)).trim();
+                menuFile = lastArg + ".yml";
+            } else {
+                cacheName = fullJoined;
+            }
         }
 
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
@@ -53,7 +61,6 @@ public class MenuCommand {
             return true;
         }
 
-        if (!menuFile.endsWith(".yml")) menuFile += ".yml";
         if (plugin.getConfigManager().loadMenuConfig(menuFile) == null) {
             ph.put("menu-file", menuFile);
             plugin.getConfigManager().executeActions(player, "errors.menu-not-found", ph);

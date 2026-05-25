@@ -1,8 +1,5 @@
 package org.gw.cachesmanager.managers;
 
-import eu.decentsoftware.holograms.api.DHAPI;
-import eu.decentsoftware.holograms.api.DecentHologramsAPI;
-import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
@@ -11,56 +8,53 @@ import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.gw.cachesmanager.CachesManager;
-import org.gw.cachesmanager.utils.HexColors;
+import org.gw.cachesmanager.animations.platform.DecentHologramsPlatform;
+import org.gw.cachesmanager.animations.platform.FancyHologramsPlatform;
+import org.gw.cachesmanager.animations.platform.HologramPlatform;
+import org.gw.cachesmanager.animations.platform.ModernMinecraftPlatform;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class HologramManager implements Listener {
+
     private final CachesManager plugin;
-    private boolean useDecentHolograms;
-    private final Map<String, Hologram> decentHolograms = new ConcurrentHashMap<>();
+    private HologramPlatform platform;
     private final Map<String, PendingHologram> pendingHolograms = new ConcurrentHashMap<>();
 
     public HologramManager(CachesManager plugin) {
         this.plugin = plugin;
-        this.useDecentHolograms = Bukkit.getPluginManager().isPluginEnabled("DecentHolograms");
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        checkDecentHologramsReady();
+        selectPlatform();
     }
 
-    private boolean isDecentHologramsReady() {
-        if (!useDecentHolograms) return false;
-        try {
-            return DecentHologramsAPI.get() != null;
-        } catch (Exception e) {
-            return false;
+    private void selectPlatform() {
+        if (Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")) {
+            this.platform = new DecentHologramsPlatform();
+        } else if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms")) {
+            this.platform = new FancyHologramsPlatform();
+        } else {
+            this.platform = new ModernMinecraftPlatform(plugin);
         }
-    }
-
-    private void checkDecentHologramsReady() {
-        if (isDecentHologramsReady()) return;
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (isDecentHologramsReady()) {
-                    recreateAllHolograms();
-                }
-            }
-        }.runTaskLater(plugin, 40L);
     }
 
     @EventHandler
     public void onPluginEnable(PluginEnableEvent event) {
-        if (event.getPlugin().getName().equals("DecentHolograms")) {
-            useDecentHolograms = true;
-            recreateAllHolograms();
+        String name = event.getPlugin().getName();
+        if (name.equals("DecentHolograms") || name.equals("FancyHolograms")) {
+            selectPlatform();
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    recreateAllHolograms();
+                }
+            }.runTaskLater(plugin, 20L);
         }
     }
 
     private void recreateAllHolograms() {
-        pendingHolograms.forEach((cacheName, pending) ->
-                createHologramNow(cacheName, pending.location, pending.text));
+        pendingHolograms.forEach((cacheName, pending) -> createHologramNow(cacheName, pending.location, pending.text));
         pendingHolograms.clear();
     }
 
@@ -73,7 +67,7 @@ public class HologramManager implements Listener {
             return;
         }
 
-        if (!isDecentHologramsReady() || !location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+        if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
             pendingHolograms.put(cacheName, new PendingHologram(location, text));
             return;
         }
@@ -82,25 +76,29 @@ public class HologramManager implements Listener {
     }
 
     private void createHologramNow(String cacheName, Location location, String text) {
-        double offsetX = 0.0, offsetY = 0.7, offsetZ = 0.0;
         CacheManager.Cache c = plugin.getCacheManager().getCache(cacheName);
+        if (c != null && c.isInUse()) {
+            return;
+        }
+
+        double offsetX = 0.0, offsetY = 0.5, offsetZ = 0.0;
         if (c != null) {
             offsetX = c.getHologramOffsetX();
             offsetY = c.getHologramOffsetY();
             offsetZ = c.getHologramOffsetZ();
         }
 
-        Location holoLoc = location.clone().add(0.5 + offsetX, 1.25 + offsetY, 0.5 + offsetZ);
-        String safeId = "caches_" + cacheName.hashCode();
+        Location holoLoc = new Location(
+                location.getWorld(),
+                location.getBlockX() + 0.5 + offsetX,
+                location.getBlockY() + 1.0 + offsetY,
+                location.getBlockZ() + 0.5 + offsetZ
+        );
 
-        List<String> lines = Arrays.asList(HexColors.translate(text).split("\n"));
+        String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
 
         try {
-            DHAPI.removeHologram(safeId);
-            Hologram hologram = DHAPI.createHologram(safeId, holoLoc, lines);
-            if (hologram != null) {
-                decentHolograms.put(cacheName, hologram);
-            }
+            platform.createHologram(safeId, holoLoc, text);
         } catch (Exception e) {
             plugin.log("Ошибка создания голограммы " + cacheName + ": " + e.getMessage());
         }
@@ -115,9 +113,7 @@ public class HologramManager implements Listener {
             if (loc.getWorld().equals(event.getWorld()) &&
                     loc.getBlockX() >> 4 == event.getChunk().getX() &&
                     loc.getBlockZ() >> 4 == event.getChunk().getZ()) {
-                if (isDecentHologramsReady()) {
-                    createHologramNow(cacheName, loc, pending.text);
-                }
+                createHologramNow(cacheName, loc, pending.text);
                 return true;
             }
             return false;
@@ -127,26 +123,27 @@ public class HologramManager implements Listener {
     public void updateHologram(String cacheName, String newText) {
         CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache != null && cache.getLocation() != null) {
-            createHologram(cacheName, cache.getLocation(), newText);
+            if (cache.isInUse()) {
+                return;
+            }
+            String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
+            platform.updateHologram(safeId, newText);
         }
     }
 
     public void removeCacheHologram(String cacheName) {
         pendingHolograms.remove(cacheName);
-        if (!isDecentHologramsReady()) {
-            decentHolograms.remove(cacheName);
-            return;
-        }
-        String safeId = "caches_" + cacheName.hashCode();
+        String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
         try {
-            DHAPI.removeHologram(safeId);
+            platform.deleteHologram(safeId);
         } catch (Exception ignored) {}
-        decentHolograms.remove(cacheName);
     }
 
     public void removeHologram(String cacheName) {
         removeCacheHologram(cacheName);
-        plugin.getAnimationsManager().removeAnimationArtifacts(cacheName);
+        if (plugin.getAnimationsManager() != null) {
+            plugin.getAnimationsManager().removeAnimationArtifacts(cacheName);
+        }
     }
 
     public void clearAllHolograms() {
@@ -155,7 +152,6 @@ public class HologramManager implements Listener {
             new ArrayList<>(plugin.getCacheManager().getCaches().keySet())
                     .forEach(this::removeCacheHologram);
         }
-        decentHolograms.clear();
     }
 
     private static class PendingHologram {

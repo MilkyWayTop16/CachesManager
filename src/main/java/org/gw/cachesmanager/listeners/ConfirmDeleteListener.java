@@ -1,9 +1,5 @@
 package org.gw.cachesmanager.listeners;
 
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -34,12 +30,13 @@ public class ConfirmDeleteListener implements Listener {
     @EventHandler
     public void onCommandPreprocess(PlayerCommandPreprocessEvent e) {
         Player p = e.getPlayer();
-        String message = e.getMessage().trim().toLowerCase();
+        String rawMessage = e.getMessage().trim();
+        String lowerMessage = rawMessage.toLowerCase();
 
-        if (!message.startsWith("/cm deletecache ")) return;
+        if (!lowerMessage.contains(" deletecache ")) return;
 
-        boolean isConfirm = message.endsWith(" confirm");
-        boolean isCancel = message.endsWith(" cancel");
+        boolean isConfirm = lowerMessage.endsWith(" confirm");
+        boolean isCancel = lowerMessage.endsWith(" cancel");
 
         if (!isConfirm && !isCancel) return;
 
@@ -49,14 +46,16 @@ public class ConfirmDeleteListener implements Listener {
             return;
         }
 
-        String base = e.getMessage().substring(0, e.getMessage().length() - (isConfirm ? 8 : 7)).trim();
-        String cacheName = base.substring(16).trim();
+        int deleteCacheIdx = lowerMessage.indexOf(" deletecache ");
+        String cachePart = rawMessage.substring(deleteCacheIdx + 13, rawMessage.length() - (isConfirm ? 8 : 7)).trim();
 
-        if (cacheName.startsWith("\"") && cacheName.endsWith("\"")) {
-            cacheName = cacheName.substring(1, cacheName.length() - 1);
+        if (cachePart.startsWith("\"") && cachePart.endsWith("\"") && cachePart.length() >= 2) {
+            cachePart = cachePart.substring(1, cachePart.length() - 1).trim();
         }
 
+        String cacheName = plugin.getConfigManager().sanitizeCacheName(cachePart);
         UUID uuid = p.getUniqueId();
+
         if (!pendingDelete.containsKey(uuid) || !pendingDelete.get(uuid).equals(cacheName)) {
             return;
         }

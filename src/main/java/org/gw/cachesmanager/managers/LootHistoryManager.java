@@ -58,17 +58,25 @@ public class LootHistoryManager {
         if (cacheName == null || playerName == null || item == null) return;
 
         int limit = plugin.getConfigManager().getHistoryMaxEntries();
-
         Deque<HistoryEntry> deque = historyCache.computeIfAbsent(cacheName, k -> new ArrayDeque<>());
-        deque.addFirst(new HistoryEntry(playerName, Instant.now().toEpochMilli(), item.clone()));
 
-        while (deque.size() > limit) deque.removeLast();
+        synchronized (deque) {
+            deque.addFirst(new HistoryEntry(playerName, Instant.now().toEpochMilli(), item.clone()));
+            while (deque.size() > limit) deque.removeLast();
+        }
 
         dirtyHistory.add(cacheName);
     }
 
     public Deque<HistoryEntry> getHistory(String cacheName) {
         return historyCache.computeIfAbsent(cacheName, this::loadHistory);
+    }
+
+    public List<HistoryEntry> getHistorySnapshot(String cacheName) {
+        Deque<HistoryEntry> deque = historyCache.computeIfAbsent(cacheName, this::loadHistory);
+        synchronized (deque) {
+            return new ArrayList<>(deque);
+        }
     }
 
     private Deque<HistoryEntry> loadHistory(String cacheName) {
@@ -101,13 +109,19 @@ public class LootHistoryManager {
 
     private void saveHistory(String cacheName) {
         Deque<HistoryEntry> deque = historyCache.get(cacheName);
-        if (deque == null || deque.isEmpty()) return;
+        if (deque == null) return;
+
+        List<HistoryEntry> snapshot;
+        synchronized (deque) {
+            if (deque.isEmpty()) return;
+            snapshot = new ArrayList<>(deque);
+        }
 
         File file = new File(historyFolder, cacheName + ".yml");
         FileConfiguration cfg = new YamlConfiguration();
 
         int i = 0;
-        for (HistoryEntry entry : deque) {
+        for (HistoryEntry entry : snapshot) {
             String base = "history." + i + ".";
             cfg.set(base + "player", entry.playerName);
             cfg.set(base + "time", entry.time);

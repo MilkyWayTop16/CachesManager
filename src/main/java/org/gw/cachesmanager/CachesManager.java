@@ -10,6 +10,7 @@ import org.gw.cachesmanager.commands.CommandsTabCompleter;
 import org.gw.cachesmanager.listeners.*;
 import org.gw.cachesmanager.managers.*;
 import org.gw.cachesmanager.utils.UpdateChecker;
+import org.gw.cachesmanager.utils.PlaceholderAPIHook;
 
 public class CachesManager extends JavaPlugin {
 
@@ -23,7 +24,6 @@ public class CachesManager extends JavaPlugin {
     @Getter private LootHistoryManager lootHistoryManager;
     @Getter private UpdateChecker updateChecker;
     @Getter private ConfirmDeleteListener confirmDeleteListener;
-
 
     @Override
     public void onEnable() {
@@ -45,12 +45,18 @@ public class CachesManager extends JavaPlugin {
     private boolean initializePlugin() {
         console("&f");
         console("&#00FF5A◆ CachesManager &f| Проверка &#00FF5Aнеобходимых &fзависимостей...");
-        if (!Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")) {
-            console("&#FF5D00◆ CachesManager &f| Ошибочка! Нужный плагин &#FF5D00ProtocolLib &fне был найден, а он &#FF5D00нужен &fдля работы, плагин выключен...");
+
+        boolean hasPacketLib = Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")
+                || Bukkit.getPluginManager().isPluginEnabled("PacketEvents");
+        boolean hasHoloLib = Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")
+                || Bukkit.getPluginManager().isPluginEnabled("FancyHolograms");
+
+        if (!hasPacketLib) {
+            error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка!");
             return false;
         }
-        if (!Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")) {
-            console("&#FF5D00◆ CachesManager &f| Ошибочка! Нужный плагин &#FF5D00DecentHolograms &fне был найден, а он &#FF5D00нужен &fдля работы, плагин выключен...");
+        if (!hasHoloLib) {
+            error("Не найдена библиотека голограмм (DecentHolograms или FancyHolograms) для отображения текста!");
             return false;
         }
         console("&#00FF5A◆ CachesManager &f| Зависимости &#00FF5Aуспешно &fподключены!");
@@ -58,6 +64,8 @@ public class CachesManager extends JavaPlugin {
         console("&#00FF5A◆ CachesManager &f| Чтение файлов конфигурации и загрузка ресурсов...");
         configManager = new ConfigManager(this);
         itemManager = new ItemManager(this);
+
+        PlaceholderAPIHook.init();
 
         console("&#00FF5A◆ CachesManager &f| Инициализация &#00FF5Aсистемы проверки &fобновлений...");
         updateChecker = new UpdateChecker(this);
@@ -118,13 +126,15 @@ public class CachesManager extends JavaPlugin {
         cacheManager.removeAllHolograms();
         cacheManager.loadCaches();
 
+        PlaceholderAPIHook.init();
+
         if (updateChecker != null) updateChecker.reload();
     }
 
     private void logStartupInfo(long loadTime) {
         console("&#ffff00 ");
-        console("&#ffff00  █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█");
-        console("&#ffff00  █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄");
+        console("&#ffff00  █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█");
+        console("&#ffff00  █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄");
         console("&#ffff00 ");
         console("&f            (By MilkyWay for everyone)");
         console("&#ffff00 ");
@@ -142,6 +152,10 @@ public class CachesManager extends JavaPlugin {
 
         console("&#FF5D00◆ CachesManager &f| Начало &#FF5D00выгрузки &fплагина...");
 
+        if (updateChecker != null) {
+            updateChecker.shutdown();
+        }
+
         if (lootHistoryManager != null) {
             console("&#FF5D00◆ CachesManager &f| Сохранение всей &#FF5D00истории &fлута...");
             lootHistoryManager.saveAll();
@@ -158,8 +172,8 @@ public class CachesManager extends JavaPlugin {
         long unloadTime = System.currentTimeMillis() - startTime;
 
         console("&#ffff00 ");
-        console("&#ffff00  █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█");
-        console("&#ffff00  █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄");
+        console("&#ffff00  █▀▀ ▄▀█ █▀▀ █░█ █▀▀ █▀ █▀▄▀█ ▄▀█ █▄░█ ▄▀█ █▀▀ █▀▀ █▀█");
+        console("&#ffff00  █▄▄ █▀█ █▄▄ █▀█ ██▄ ▄█ █░▀░█ █▀█ █░▀█ █▀█ █▄█ ██▄ █▀▄");
         console("&#ffff00 ");
         console("&f            (By MilkyWay for everyone)");
         console("&#ffff00 ");
@@ -180,5 +194,9 @@ public class CachesManager extends JavaPlugin {
         if (configManager != null && configManager.isLogsInConsoleEnabled()) {
             console("&#ffff00◆ CachesManager &f| " + message);
         }
+    }
+
+    public void error(String message) {
+        Bukkit.getConsoleSender().sendMessage(HexColors.translate("&#FB8808◆ CachesManager &f| " + message));
     }
 }

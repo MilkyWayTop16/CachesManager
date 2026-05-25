@@ -200,6 +200,11 @@ public class CacheBlockListener implements Listener {
                 return;
             } else {
                 event.setCancelled(false);
+                ph.put("name-cache", existingCache.getDisplayName());
+                configManager.executeActions(player, "cache.deleted", ph);
+                existingCache.setLocation(null);
+                existingCache.setBlockType(null);
+                configManager.saveCacheConfig(existingCache.name);
                 return;
             }
         }

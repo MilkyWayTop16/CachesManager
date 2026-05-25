@@ -30,6 +30,7 @@ public class CacheManager {
     private final StatsManager statsManager;
     private final LootHistoryManager lootHistoryManager;
     private final Map<String, Cache> caches = new ConcurrentHashMap<>();
+    private final Map<Location, Cache> cacheByLocation = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastOpenTime = new ConcurrentHashMap<>();
     private volatile boolean isReloading = false;
 
@@ -45,6 +46,14 @@ public class CacheManager {
         this.lootHistoryManager = lootHistoryManager;
     }
 
+    public void removeLocationMapping(Location loc) {
+        if (loc != null) cacheByLocation.remove(loc);
+    }
+
+    public void addLocationMapping(Location loc, Cache cache) {
+        if (loc != null && cache != null) cacheByLocation.put(loc, cache);
+    }
+
     public void loadCaches() {
         if (isReloading) return;
         isReloading = true;
@@ -52,16 +61,27 @@ public class CacheManager {
         if (hologramManager != null) {
             hologramManager.clearAllHolograms();
         }
+
+        Map<String, Cache> oldCaches = new HashMap<>(caches);
         caches.clear();
+        cacheByLocation.clear();
 
         List<String> cacheNames = configManager.getCacheNames();
 
         for (String cacheName : cacheNames) {
-            Cache cache = new Cache(cacheName);
-            caches.put(cacheName, cache);
-            caches.put(cacheName, cache);
+            Cache oldCache = oldCaches.get(cacheName);
+            boolean stoodInUse = oldCache != null && oldCache.isInUse();
 
-            if (cache.getLocation() != null && cache.isHologramEnabled() && hologramManager != null) {
+            Cache cache = new Cache(cacheName);
+            if (stoodInUse) {
+                cache.setInUse(true);
+            }
+            caches.put(cacheName, cache);
+            if (cache.getLocation() != null) {
+                cacheByLocation.put(cache.getLocation(), cache);
+            }
+
+            if (!stoodInUse && cache.getLocation() != null && cache.isHologramEnabled() && hologramManager != null) {
                 hologramManager.createHologram(cacheName, cache.getLocation(), cache.getHologramText());
             }
             if (plugin.getMenuManager() != null) {
@@ -70,13 +90,13 @@ public class CacheManager {
         }
 
         isReloading = false;
-        plugin.log("&#ffff00◆ CachesManager &f| Загружено " + caches.size() + " тайников");
+        plugin.log("Успешно инициализировано и загружено файлов тайников: &#ffff00" + caches.size());
     }
 
     public boolean createCache(String cacheName) {
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         if (cacheName.isEmpty() || caches.containsKey(cacheName)) {
-            plugin.log("Некорректное или уже существующее имя тайника: &#ffff00" + cacheName);
+            plugin.error("Не удалось создать тайник. Имя некорректно или уже занято: &#ffff00" + cacheName);
             return false;
         }
         configManager.createCacheConfig(cacheName);
@@ -87,21 +107,27 @@ public class CacheManager {
             plugin.getMenuManager().initializeCachePageLoot(cacheName);
         }
 
-        plugin.log("Тайник успешно создан: &#ffff00" + cacheName);
+        plugin.log("Создан новый тайник в общей базе данных: &#ffff00" + cacheName);
         return true;
     }
 
     public boolean renameCache(String oldName, String newName) {
         newName = plugin.getConfigManager().sanitizeCacheName(newName);
         if (newName.isEmpty() || caches.containsKey(newName)) {
-            plugin.log("Некорректное или уже существующее имя тайника: &#ffff00" + newName);
+            plugin.error("Не удалось переименовать тайник. Имя некорректно или занято: &#ffff00" + newName);
             return false;
         }
-        Cache cache = caches.remove(oldName);
+        Cache cache = caches.get(oldName);
         if (cache == null) {
-            plugin.log("Тайник для переименования не найден: &#ffff00" + oldName);
+            plugin.error("Тайник для выполнения переименования не найден в кэше: &#ffff00" + oldName);
             return false;
         }
+        if (cache.isInUse()) {
+            plugin.error("Отклонено переименование тайника &#ffff00" + oldName + " &f— объект заблокирован анимацией открытия!");
+            return false;
+        }
+
+        caches.remove(oldName);
 
         if (hologramManager != null) {
             hologramManager.removeCacheHologram(oldName);
@@ -109,7 +135,7 @@ public class CacheManager {
 
         if (!configManager.renameCacheConfig(oldName, newName)) {
             caches.put(oldName, cache);
-            plugin.log("Не удалось переименовать конфиг: &#ffff00" + oldName);
+            plugin.error("Критический сбой переименования файла конфигурации на диске для тайника: &#ffff00" + oldName);
             return false;
         }
 
@@ -120,26 +146,34 @@ public class CacheManager {
             hologramManager.createHologram(newName, cache.getLocation(), cache.getHologramText());
         }
 
-        plugin.log("Тайник переименован: &#ffff00" + oldName + " &f→ &#ffff00" + newName);
+        plugin.log("Тайник успешно переименован в файловой системе: &#ffff00" + oldName + " &f→ &#ffff00" + newName);
         return true;
     }
 
     public boolean deleteCache(String cacheName) {
-        Cache cache = caches.remove(cacheName);
-        if (cache != null) {
-            cache.removeHologram();
-            if (plugin.getMenuManager() != null) {
-                plugin.getMenuManager().clearCacheForCache(cacheName);
-            }
-            if (plugin.getLootHistoryManager() != null) {
-                plugin.getLootHistoryManager().deleteHistory(cacheName);
-            }
-            configManager.deleteCacheConfig(cacheName);
-            plugin.log("Тайник успешно удалён: &#ffff00" + cacheName);
-            return true;
+        Cache cache = caches.get(cacheName);
+        if (cache == null) {
+            return false;
         }
-        plugin.log("Не удалось удалить тайник (не найден): &#ffff00" + cacheName);
-        return false;
+        if (cache.isInUse()) {
+            plugin.error("Запрос на удаление отклонен, так как тайник &#ffff00" + cacheName + " &fв данный момент открывается игроком...");
+            return false;
+        }
+
+        caches.remove(cacheName);
+        if (cache.getLocation() != null) {
+            cacheByLocation.remove(cache.getLocation());
+        }
+        cache.removeHologram();
+        if (plugin.getMenuManager() != null) {
+            plugin.getMenuManager().clearCacheForCache(cacheName);
+        }
+        if (plugin.getLootHistoryManager() != null) {
+            plugin.getLootHistoryManager().deleteHistory(cacheName);
+        }
+        configManager.deleteCacheConfig(cacheName);
+        plugin.log("Тайник полностью удален из памяти сервера и конфигураций: &#ffff00" + cacheName);
+        return true;
     }
 
     public Cache getCache(String cacheName) {
@@ -147,12 +181,8 @@ public class CacheManager {
     }
 
     public Cache getCacheByLocation(Location location) {
-        for (Cache cache : caches.values()) {
-            if (cache.getLocation() != null && cache.getLocation().equals(location)) {
-                return cache;
-            }
-        }
-        return null;
+        if (location == null) return null;
+        return cacheByLocation.get(location);
     }
 
     public Map<String, Cache> getCaches() {
@@ -289,6 +319,30 @@ public class CacheManager {
             if (this.lootWithChances == null) this.lootWithChances = new ArrayList<>();
         }
 
+        private void saveStatsToConfig() {
+            FileConfiguration config = configManager.loadCacheConfig(name);
+            if (config == null) return;
+            synchronized (config) {
+                config.set("stats.open-count", openCount);
+                config.set("stats.total-loot-given", totalLootGiven);
+                config.set("stats.last-opened", lastOpenedTime);
+                config.set("stats.first-opened", firstOpenedTime);
+                config.set("stats.max-daily", maxDailyOpens);
+                config.set("stats.interval-sum", totalIntervalSum);
+                config.set("stats.interval-count", intervalCount);
+
+                config.set("stats.daily-opens", null);
+                for (Map.Entry<LocalDate, AtomicInteger> entry : dailyOpens.entrySet()) {
+                    config.set("stats.daily-opens." + entry.getKey().toString(), entry.getValue().get());
+                }
+
+                config.set("stats.top-players", null);
+                for (Map.Entry<String, Integer> entry : topPlayers.entrySet()) {
+                    config.set("stats.top-players." + entry.getKey(), entry.getValue());
+                }
+            }
+        }
+
         public void incrementOpenCount() {
             long now = Instant.now().toEpochMilli();
             openCount++;
@@ -305,11 +359,13 @@ public class CacheManager {
             int count = dailyOpens.computeIfAbsent(today, k -> new AtomicInteger(0)).incrementAndGet();
             if (count > maxDailyOpens) maxDailyOpens = count;
 
+            saveStatsToConfig();
             plugin.getConfigManager().saveCacheConfig(name);
         }
 
         public void addLootGiven(int amount) {
             totalLootGiven += amount;
+            saveStatsToConfig();
             plugin.getConfigManager().saveCacheConfig(name);
         }
 
@@ -323,6 +379,7 @@ public class CacheManager {
             topPlayers.clear();
             for (Map.Entry<String, Integer> e : sorted) topPlayers.put(e.getKey(), e.getValue());
 
+            saveStatsToConfig();
             plugin.getConfigManager().saveCacheConfig(name);
         }
 
@@ -378,8 +435,14 @@ public class CacheManager {
         }
 
         public void setLocation(Location loc) {
+            if (this.location != null) {
+                plugin.getCacheManager().removeLocationMapping(this.location);
+            }
             this.location = loc;
             configManager.setCacheLocation(name, loc);
+            if (loc != null) {
+                plugin.getCacheManager().addLocationMapping(loc, this);
+            }
             if (loc != null && blockType != null) {
                 plugin.getServer().getScheduler().runTask(plugin, () -> loc.getBlock().setType(blockType));
             }
@@ -478,7 +541,7 @@ public class CacheManager {
                 lootHistoryManager.addEntry(name, player.getName(), lootItem);
                 statsManager.addLootGiven(this, 1);
                 hologramManager.removeHologram(name);
-                AnimationsManager.Animation anim = animationsManager.getAnimations().get(animation);
+                org.gw.cachesmanager.animations.Animation anim = animationsManager.getAnimations().get(animation);
                 if (anim == null) {
                     giveLoot(player, lootItem, ph);
                     return true;

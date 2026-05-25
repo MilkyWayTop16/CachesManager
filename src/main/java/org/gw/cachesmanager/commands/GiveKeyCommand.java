@@ -20,51 +20,82 @@ public class GiveKeyCommand {
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.givekey");
             return true;
         }
-        int amountIndex = -1;
-        for (int i = args.length - 1; i >= 1; i--) {
-            if (args[i].matches("\\d+")) {
-                amountIndex = i;
-                break;
+
+        String targetName = null;
+        Player target = null;
+
+        String lastArg = args[args.length - 1];
+        Player testPlayer = plugin.getServer().getPlayerExact(lastArg);
+
+        int endOffset = 0;
+        if (testPlayer != null) {
+            target = testPlayer;
+            targetName = testPlayer.getName();
+            endOffset = 1;
+        } else {
+            if (sender instanceof Player) {
+                target = (Player) sender;
+                targetName = target.getName();
+            } else {
+                if (args.length > 2) {
+                    String possiblePlayer = args[args.length - 1];
+                    String possibleAmount = args[args.length - 2];
+                    if (possibleAmount.matches("\\d+")) {
+                        targetName = possiblePlayer;
+                    }
+                }
+                if (targetName == null) {
+                    targetName = args[args.length - 1];
+                }
             }
         }
-        String cacheName;
+
         int amount = 1;
-        if (amountIndex != -1) {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, amountIndex)).trim();
-            try {
-                amount = Integer.parseInt(args[amountIndex]);
+        int amountIndex = args.length - 1 - endOffset;
+
+        if (amountIndex >= 1) {
+            String amountStr = args[amountIndex];
+            if (amountStr.matches("\\d+")) {
+                amount = Integer.parseInt(amountStr);
                 if (amount <= 0) amount = 1;
-            } catch (NumberFormatException ignored) {}
+            } else {
+                if (endOffset == 1 || (endOffset == 0 && args.length > 2 && !plugin.getCacheManager().getCaches().containsKey(String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim()))) {
+                    plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount");
+                    return true;
+                }
+                amountIndex = args.length - 1;
+            }
         } else {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+            amountIndex = args.length - 1;
         }
+
+        String cacheName;
+        if (amountIndex == args.length - 1 - endOffset && args[amountIndex].matches("\\d+")) {
+            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, amountIndex)).trim();
+        } else {
+            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - endOffset)).trim();
+        }
+
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         if (cacheName.isEmpty()) {
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.givekey");
             return true;
         }
+
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
+
         if (plugin.getCacheManager().getCache(cacheName) == null) {
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "cache.not-found", ph);
             return true;
         }
-        Player target;
-        String targetName = sender instanceof Player ? ((Player) sender).getName() : "Console";
-        if (amountIndex != -1 && amountIndex + 1 < args.length) {
-            targetName = args[args.length - 1];
-            target = plugin.getServer().getPlayerExact(targetName);
-        } else if (sender instanceof Player) {
-            target = (Player) sender;
-        } else {
-            plugin.getConfigManager().executeActions(null, "errors.console-not-allowed");
-            return true;
-        }
+
         if (target == null) {
-            ph.put("player", targetName);
+            ph.put("player", targetName != null ? targetName : "Unknown");
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-player", ph);
             return true;
         }
+
         plugin.getItemManager().giveKey(target, cacheName, amount);
         ph.put("amount", String.valueOf(amount));
         ph.put("player", target.getName());

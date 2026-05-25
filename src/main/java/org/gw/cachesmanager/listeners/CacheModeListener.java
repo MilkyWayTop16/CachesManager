@@ -233,17 +233,20 @@ public class CacheModeListener implements Listener {
         if (data == null) return;
 
         event.setCancelled(true);
-        event.getRecipients().clear();
-
         String message = event.getMessage().trim();
-        if (message.equalsIgnoreCase("cancel")) {
-            cancelSelectionMode(player);
-            return;
-        }
 
-        if (data.timeoutTask != null) data.timeoutTask.cancel();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            ModeData currentData = activeModes.get(player.getUniqueId());
+            if (currentData == null) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> handleChat(player, data, message));
+            if (message.equalsIgnoreCase("cancel")) {
+                cancelSelectionMode(player);
+                return;
+            }
+
+            if (currentData.timeoutTask != null) currentData.timeoutTask.cancel();
+            handleChat(player, currentData, message);
+        });
     }
 
     private void handleChat(Player player, ModeData data, String message) {
@@ -293,6 +296,7 @@ public class CacheModeListener implements Listener {
         ph.put("name-cache", cacheName);
 
         if (parts.length != 5) {
+            activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "cache.invalid-coordinates-format", ph);
             reopenLastMenu(player, cacheName);
             return;
@@ -304,6 +308,7 @@ public class CacheModeListener implements Listener {
             y = Double.parseDouble(parts[1]);
             z = Double.parseDouble(parts[2]);
         } catch (NumberFormatException e) {
+            activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "cache.invalid-coordinates", ph);
             reopenLastMenu(player, cacheName);
             return;
@@ -312,6 +317,7 @@ public class CacheModeListener implements Listener {
         String worldName = parts[3];
         World world = plugin.getServer().getWorld(worldName);
         if (world == null) {
+            activeModes.remove(player.getUniqueId());
             ph.put("world", worldName);
             configManager.executeActions(player, "cache.invalid-world", ph);
             reopenLastMenu(player, cacheName);
@@ -326,6 +332,7 @@ public class CacheModeListener implements Listener {
                 throw new IllegalArgumentException("Not a block");
             }
         } catch (IllegalArgumentException e) {
+            activeModes.remove(player.getUniqueId());
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.replace-block.invalid", ph);
             reopenLastMenu(player, cacheName);
@@ -343,6 +350,7 @@ public class CacheModeListener implements Listener {
 
         CacheManager.Cache existingCache = cacheManager.getCacheByLocation(location);
         if (existingCache != null && !existingCache.name.equals(cacheName)) {
+            activeModes.remove(player.getUniqueId());
             ph.put("name-cache", existingCache.getDisplayName());
             configManager.executeActions(player, "cache.already-exists", ph);
             reopenLastMenu(player, cacheName);
@@ -388,6 +396,7 @@ public class CacheModeListener implements Listener {
                 throw new IllegalArgumentException("Not a block");
             }
         } catch (IllegalArgumentException e) {
+            activeModes.remove(player.getUniqueId());
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.replace-block.invalid", ph);
             reopenLastMenu(player, cacheName);
@@ -505,6 +514,7 @@ public class CacheModeListener implements Listener {
             configManager.executeActions(player, actionPath, ph);
             plugin.getHologramManager().updateHologram(cacheName, cache.getHologramText());
         } catch (NumberFormatException e) {
+            activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "interaction.hologram.offset-invalid-number");
         }
         activeModes.remove(player.getUniqueId());
@@ -517,6 +527,7 @@ public class CacheModeListener implements Listener {
 
         Material mat = Material.matchMaterial(materialStr.toUpperCase());
         if (mat == null) {
+            activeModes.remove(player.getUniqueId());
             Map<String, String> ph = new HashMap<>();
             ph.put("material", materialStr);
             configManager.executeActions(player, "key.change-material.invalid", ph);
@@ -586,20 +597,21 @@ public class CacheModeListener implements Listener {
     }
 
     private void handleKeyCMDChat(Player player, String cacheName, String cmdStr) {
-        CacheManager.Cache cache = cacheManager.getCache(cacheName);
-        if (cache == null) return;
+        CacheManager.Cache actualCache = cacheManager.getCache(cacheName);
+        if (actualCache == null) return;
 
         try {
             int cmd = Integer.parseInt(cmdStr);
-            cache.setKeyCustomModelData(cmd);
+            actualCache.setKeyCustomModelData(cmd);
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", actualCache.getDisplayName());
             ph.put("key-cmd", String.valueOf(cmd));
             configManager.executeActions(player, "key.cmd-changed", ph);
 
             activeModes.remove(player.getUniqueId());
             reopenLastMenu(player, cacheName);
         } catch (NumberFormatException e) {
+            activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "key.change-cmd.invalid");
         }
     }
@@ -619,6 +631,7 @@ public class CacheModeListener implements Listener {
         try {
             itemFlag = ItemFlag.valueOf(flagName);
         } catch (IllegalArgumentException e) {
+            activeModes.remove(player.getUniqueId());
             Map<String, String> ph = new HashMap<>();
             ph.put("flag", flagName);
             configManager.executeActions(player, "key.change-flags.invalid", ph);
@@ -633,6 +646,7 @@ public class CacheModeListener implements Listener {
             if (cache.removeKeyFlag(flagName)) {
                 configManager.executeActions(player, "key.change-flags.removed", ph);
             } else {
+                activeModes.remove(player.getUniqueId());
                 configManager.executeActions(player, "key.change-flags.not-found", ph);
                 return;
             }
@@ -640,6 +654,7 @@ public class CacheModeListener implements Listener {
             if (cache.addKeyFlag(flagName)) {
                 configManager.executeActions(player, "key.change-flags.added", ph);
             } else {
+                activeModes.remove(player.getUniqueId());
                 configManager.executeActions(player, "key.change-flags.already-exists", ph);
                 return;
             }

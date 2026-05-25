@@ -97,7 +97,6 @@ public class StatsManager {
         if (cache == null) return new ItemStack(Material.PLAYER_HEAD);
 
         Map<String, Integer> top = cache.getTopPlayers();
-
         FileConfiguration menuCfg = configManager.loadMenuConfig("stats-menu.yml");
 
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
@@ -106,27 +105,29 @@ public class StatsManager {
         String title = menuCfg.getString("items.top-players.display-name");
         meta.setDisplayName(HexColors.translate(title));
 
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-
         List<String> loreTemplate = menuCfg.getStringList("items.top-players.lore");
-        String template = loreTemplate.size() > 1 ? loreTemplate.get(1)
-                : "  &#FFFF00◆ &f{rank}. &#FFFF00{player} &f— &#FFFF00{count} открытий";
+        List<String> lore = new ArrayList<>();
 
-        if (top.isEmpty()) {
-            lore.add(HexColors.translate(configManager.getConfig().getString("actions.stats.no-players")));
-        } else {
-            int rank = 1;
-            for (Map.Entry<String, Integer> entry : top.entrySet()) {
-                lore.add(HexColors.translate(template
-                        .replace("{rank}", String.valueOf(rank))
-                        .replace("{player}", entry.getKey())
-                        .replace("{count}", String.valueOf(entry.getValue()))));
-                rank++;
+        for (String line : loreTemplate) {
+            if (line.contains("{player}") || line.contains("{count}")) {
+                if (top.isEmpty()) {
+                    String noPlayersMsg = configManager.getConfig().getString("actions.stats.no-players", "&7Нет данных");
+                    lore.add(HexColors.translate(noPlayersMsg));
+                } else {
+                    int rank = 1;
+                    for (Map.Entry<String, Integer> entry : top.entrySet()) {
+                        lore.add(HexColors.translate(line
+                                .replace("{rank}", String.valueOf(rank))
+                                .replace("{player}", entry.getKey())
+                                .replace("{count}", String.valueOf(entry.getValue()))));
+                        rank++;
+                    }
+                }
+            } else {
+                lore.add(HexColors.translate(line));
             }
         }
 
-        lore.add("");
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
