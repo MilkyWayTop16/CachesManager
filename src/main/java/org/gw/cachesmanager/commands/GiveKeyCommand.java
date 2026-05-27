@@ -97,6 +97,7 @@ public class GiveKeyCommand {
         }
 
         plugin.getItemManager().giveKey(target, cacheName, amount);
+
         ph.put("amount", String.valueOf(amount));
         ph.put("player", target.getName());
         plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "key.given", ph);

@@ -60,7 +60,7 @@ public class CacheConfigHandler {
                                     try {
                                         cfg.save(file);
                                     } catch (IOException e) {
-                                        plugin.console("&#ffff00◆ CachesManager &f| Ошибка асинхронного сохранения тайника " + name);
+                                        plugin.error("Ошибка асинхронного сохранения конфигурации тайника &#FB8808" + name + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
                                     }
                                 }
                             }
@@ -95,7 +95,7 @@ public class CacheConfigHandler {
             cacheConfigs.put(cacheName, cfg);
             return cfg;
         } catch (Exception e) {
-            plugin.console("&#ffff00◆ CachesManager &f| Не удалось загрузить конфиг тайника " + cacheName + ".yml");
+            plugin.error("Не удалось загрузить .yml-конфигурацию тайника &#FB8808" + cacheName + ".yml &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
             return null;
         }
     }
@@ -125,7 +125,7 @@ public class CacheConfigHandler {
                         try {
                             cfg.save(new File(cachesFolder, name + ".yml"));
                         } catch (IOException e) {
-                            plugin.console("&#ffff00◆ CachesManager &f| Ошибка принудительного сохранения " + name);
+                            plugin.error("Ошибка принудительного сохранения конфигурации тайника &#FB8808" + name + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
                         }
                     }
                 }
@@ -143,14 +143,18 @@ public class CacheConfigHandler {
                 loadCacheConfig(file.getName().replace(".yml", ""));
             }
         }
+        plugin.log("Успешно подгружено конфигураций тайников в кэш памяти: &#ffff00" + cacheConfigs.size());
     }
 
     public boolean renameCacheConfig(String oldName, String newName) {
         File oldFile = new File(cachesFolder, oldName + ".yml");
         File newFile = new File(cachesFolder, newName + ".yml");
-        if (!oldFile.exists() || newFile.exists()) return false;
+        if (!oldFile.exists() || newFile.exists()) {
+            plugin.error("Не удалось переименовать файл конфигурации тайника, целевой файл уже существует или исходный отсутствует...");
+            return false;
+        }
         if (!oldFile.renameTo(newFile)) {
-            plugin.console("&#ffff00◆ CachesManager &f| Не удалось переименовать файл конфига");
+            plugin.error("Не удалось переименовать файл конфигурации тайника на уровне файловой системы...");
             return false;
         }
         FileConfiguration cfg = loadCacheConfig(newName);
@@ -202,8 +206,9 @@ public class CacheConfigHandler {
                     cfg.save(file);
                 }
                 cacheConfigs.put(cacheName, cfg);
+                plugin.log("Успешно создан новый файл конфигурации тайника на диске: &#ffff00" + cacheName + ".yml");
             } catch (IOException e) {
-                plugin.console("&#ffff00◆ CachesManager &f| Ошибка создания конфига тайника " + cacheName);
+                plugin.error("Ошибка создания файла конфигурации тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
             }
         }
     }
@@ -213,8 +218,9 @@ public class CacheConfigHandler {
         if (file.exists() && file.delete()) {
             cacheConfigs.remove(cacheName);
             dirtyCacheNames.remove(cacheName);
+            plugin.log("Файл конфигурации тайника &#ffff00" + cacheName + ".yml &fуспешно удален с диска");
         } else {
-            plugin.console("&#ffff00◆ CachesManager &f| Не удалось удалить файл конфига тайника " + cacheName);
+            plugin.error("Не удалось корректно удалить файл конфигурации тайника &#FB8808" + cacheName + ".yml &fс диска...");
         }
     }
 

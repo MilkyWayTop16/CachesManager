@@ -52,11 +52,7 @@ public class CachesManager extends JavaPlugin {
                 || Bukkit.getPluginManager().isPluginEnabled("FancyHolograms");
 
         if (!hasPacketLib) {
-            error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка!");
-            return false;
-        }
-        if (!hasHoloLib) {
-            error("Не найдена библиотека голограмм (DecentHolograms или FancyHolograms) для отображения текста!");
+            error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка...");
             return false;
         }
         console("&#00FF5A◆ CachesManager &f| Зависимости &#00FF5Aуспешно &fподключены!");
@@ -73,6 +69,10 @@ public class CachesManager extends JavaPlugin {
         console("&#00FF5A◆ CachesManager &f| Инициализация &#00FF5Aсистем голограмм &fи &#00FF5Aдвижка &fанимаций...");
         hologramManager = new HologramManager(this);
         animationsManager = new AnimationsManager(this, hologramManager);
+
+        if (!hasHoloLib) {
+            log("Сторонние плагины голограмм не найдены, активирован встроенный движок ModernMinecraftPlatform");
+        }
 
         console("&#00FF5A◆ CachesManager &f| Подготовка &#00FF5Aядра &fи &#00FF5Aстатистики &fтайников...");
         StatsManager statsManager = new StatsManager(this, configManager);

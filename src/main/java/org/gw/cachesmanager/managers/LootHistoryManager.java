@@ -130,7 +130,9 @@ public class LootHistoryManager {
         }
         try {
             cfg.save(file);
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            plugin.error("Не удалось сохранить файл истории лута для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
+        }
     }
 
     public void deleteHistory(String cacheName) {
@@ -169,6 +171,7 @@ public class LootHistoryManager {
             String cacheName = file.getName().replace(".yml", "");
             historyCache.put(cacheName, loadHistory(cacheName));
         }
+        plugin.log("Успешно &#ffff00инициализировано &fи &#ffff00загружено &fисторий лута тайников: &#ffff00" + historyCache.size());
     }
 
     public void reload() {

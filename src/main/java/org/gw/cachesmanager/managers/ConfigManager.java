@@ -116,6 +116,16 @@ public class ConfigManager {
         return cacheConfigHandler.getCacheDisplayName(cacheName);
     }
 
+    public void setCacheDisplayName(String cacheName, String displayName) {
+        FileConfiguration cfg = loadCacheConfig(cacheName);
+        if (cfg != null) {
+            synchronized (cfg) {
+                cfg.set("cache-name", displayName);
+            }
+            saveCacheConfig(cacheName);
+        }
+    }
+
     public Location getCacheLocation(FileConfiguration cacheConfig) {
         return cacheConfigHandler.getCacheLocation(cacheConfig);
     }

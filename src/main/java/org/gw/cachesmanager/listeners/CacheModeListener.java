@@ -1,24 +1,20 @@
 package org.gw.cachesmanager.listeners;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.managers.ConfigManager;
 import org.gw.cachesmanager.managers.MenuManager;
-import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class CacheModeListener implements Listener {
     private final CachesManager plugin;
@@ -27,21 +23,12 @@ public class CacheModeListener implements Listener {
     private MenuManager menuManager;
 
     private final Map<UUID, ModeData> activeModes = new ConcurrentHashMap<>();
-    private final Map<UUID, String> lastMenuFile = new HashMap<>();
+    private final Map<UUID, String> lastMenuFile = new ConcurrentHashMap<>();
 
-    private enum PlayerMode {
-        SELECTION,
-        REPLACE_BLOCK,
-        RENAME,
-        HOLOGRAM_TEXT,
-        HOLOGRAM_OFFSET_X,
-        HOLOGRAM_OFFSET_Y,
-        HOLOGRAM_OFFSET_Z,
-        KEY_MATERIAL,
-        KEY_NAME,
-        KEY_LORE,
-        KEY_CMD,
-        KEY_FLAGS
+    public enum PlayerMode {
+        SELECTION, REPLACE_BLOCK, RENAME, HOLOGRAM_TEXT,
+        HOLOGRAM_OFFSET_X, HOLOGRAM_OFFSET_Y, HOLOGRAM_OFFSET_Z,
+        KEY_MATERIAL, KEY_NAME, KEY_LORE, KEY_CMD, KEY_FLAGS
     }
 
     private static class ModeData {
@@ -66,60 +53,67 @@ public class CacheModeListener implements Listener {
         this.menuManager = menuManager;
     }
 
+    public String getSelectionMode(Player player) {
+        ModeData data = activeModes.get(player.getUniqueId());
+        return (data != null && data.mode == PlayerMode.SELECTION) ? data.cacheName : null;
+    }
+
+    public void removeSelectionMode(Player player) {
+        ModeData data = activeModes.remove(player.getUniqueId());
+        if (data != null && data.timeoutTask != null) {
+            data.timeoutTask.cancel();
+        }
+    }
+
     public void enableSelectionMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.SELECTION, "interaction.select-block.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.SELECTION, "interaction.select-block.mode-enabled", null);
     }
 
     public void enableReplaceBlockMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.REPLACE_BLOCK, "interaction.replace-block.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.REPLACE_BLOCK, "interaction.replace-block.mode-enabled", null);
     }
 
     public void enableRenameMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.RENAME, "interaction.rename.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.RENAME, "interaction.rename.mode-enabled", null);
     }
 
     public void enableHologramTextMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.HOLOGRAM_TEXT, "interaction.hologram.change-text.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.HOLOGRAM_TEXT, "interaction.hologram.change-text.mode-enabled", null);
     }
 
     public void enableHologramOffsetXMode(Player player, String cacheName) {
-        enableOffsetMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_X, "interaction.hologram.offset-x.mode-enabled", "current-x");
+        enableMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_X, "interaction.hologram.offset-x.mode-enabled", null);
     }
 
     public void enableHologramOffsetYMode(Player player, String cacheName) {
-        enableOffsetMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_Y, "interaction.hologram.offset-y.mode-enabled", "current-y");
+        enableMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_Y, "interaction.hologram.offset-y.mode-enabled", null);
     }
 
     public void enableHologramOffsetZMode(Player player, String cacheName) {
-        enableOffsetMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_Z, "interaction.hologram.offset-z.mode-enabled", "current-z");
+        enableMode(player, cacheName, PlayerMode.HOLOGRAM_OFFSET_Z, "interaction.hologram.offset-z.mode-enabled", null);
     }
 
     public void enableKeyMaterialMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.KEY_MATERIAL, "key.change-material.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.KEY_MATERIAL, "key.change-material.mode-enabled", null);
     }
 
     public void enableKeyNameMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.KEY_NAME, "key.change-name.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.KEY_NAME, "key.change-name.mode-enabled", null);
     }
 
     public void enableKeyLoreMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.KEY_LORE, "key.change-lore.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.KEY_LORE, "key.change-lore.mode-enabled", null);
     }
 
     public void enableKeyCMDMode(Player player, String cacheName) {
-        enableMode(player, cacheName, PlayerMode.KEY_CMD, "key.change-cmd.mode-enabled");
+        enableMode(player, cacheName, PlayerMode.KEY_CMD, "key.change-cmd.mode-enabled", null);
     }
 
     public void enableKeyFlagsMode(Player player, String cacheName) {
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
-        Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cacheName);
-        ph.put("key-flags", cache != null ? cache.getKeyFlagsString() : "Отсутствуют");
-        enableMode(player, cacheName, PlayerMode.KEY_FLAGS, "key.change-flags.mode-enabled", ph);
-    }
-
-    private void enableMode(Player player, String cacheName, PlayerMode mode, String messagePath) {
-        enableMode(player, cacheName, mode, messagePath, null);
+        Map<String, String> extra = new HashMap<>();
+        extra.put("key-flags", cache != null ? cache.getKeyFlagsString() : "");
+        enableMode(player, cacheName, PlayerMode.KEY_FLAGS, "key.change-flags.mode-enabled", extra);
     }
 
     private void enableMode(Player player, String cacheName, PlayerMode mode, String messagePath, Map<String, String> extraPh) {
@@ -140,25 +134,12 @@ public class CacheModeListener implements Listener {
         task.runTaskLater(plugin, configManager.getModeTimeoutSeconds() * 20L);
 
         activeModes.put(player.getUniqueId(), new ModeData(cacheName, mode, task));
+        plugin.log("Для игрока &#ffff00" + player.getName() + " &fактивирован режим настройки &#ffff00" + mode.name() + " &fдля тайника &#ffff00" + cacheName);
 
         String currentMenu = menuManager != null ? menuManager.getCurrentMenu(player) : null;
         if (currentMenu != null) {
             lastMenuFile.put(player.getUniqueId(), currentMenu);
         }
-    }
-
-    private void enableOffsetMode(Player player, String cacheName, PlayerMode mode, String messagePath, String currentKey) {
-        CacheManager.Cache cache = cacheManager.getCache(cacheName);
-        Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cacheName);
-
-        double value = 0.0;
-        if (mode == PlayerMode.HOLOGRAM_OFFSET_X) value = cache != null ? cache.getHologramOffsetX() : 0.0;
-        else if (mode == PlayerMode.HOLOGRAM_OFFSET_Y) value = cache != null ? cache.getHologramOffsetY() : 0.5;
-        else if (mode == PlayerMode.HOLOGRAM_OFFSET_Z) value = cache != null ? cache.getHologramOffsetZ() : 0.0;
-        ph.put(currentKey, String.valueOf(value));
-
-        enableMode(player, cacheName, mode, messagePath, ph);
     }
 
     public boolean cancelSelectionMode(Player player) {
@@ -213,17 +194,9 @@ public class CacheModeListener implements Listener {
         }
 
         configManager.executeActions(player, path, ph);
+        plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из режима ввода параметров тайника или истекло время ожидания...");
         reopenLastMenu(player, data.cacheName);
         return true;
-    }
-
-    public void removeSelectionMode(Player player) {
-        activeModes.remove(player.getUniqueId());
-    }
-
-    public String getSelectionMode(Player player) {
-        ModeData data = activeModes.get(player.getUniqueId());
-        return data != null && data.mode == PlayerMode.SELECTION ? data.cacheName : null;
     }
 
     @EventHandler
@@ -233,61 +206,61 @@ public class CacheModeListener implements Listener {
         if (data == null) return;
 
         event.setCancelled(true);
-        String message = event.getMessage().trim();
+        String message = event.getMessage();
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            ModeData currentData = activeModes.get(player.getUniqueId());
-            if (currentData == null) return;
-
-            if (message.equalsIgnoreCase("cancel")) {
-                cancelSelectionMode(player);
-                return;
-            }
-
-            if (currentData.timeoutTask != null) currentData.timeoutTask.cancel();
-            handleChat(player, currentData, message);
-        });
-    }
-
-    private void handleChat(Player player, ModeData data, String message) {
-        switch (data.mode) {
-            case SELECTION:
-                handleSelectionModeChat(player, data.cacheName, message);
-                break;
-            case REPLACE_BLOCK:
-                handleReplaceBlockModeChat(player, data.cacheName, message);
-                break;
-            case RENAME:
-                handleRenameModeChat(player, data.cacheName, message);
-                break;
-            case HOLOGRAM_TEXT:
-                handleHologramTextModeChat(player, data.cacheName, message);
-                break;
-            case HOLOGRAM_OFFSET_X:
-                handleOffsetChat(player, data.cacheName, message, "X");
-                break;
-            case HOLOGRAM_OFFSET_Y:
-                handleOffsetChat(player, data.cacheName, message, "Y");
-                break;
-            case HOLOGRAM_OFFSET_Z:
-                handleOffsetChat(player, data.cacheName, message, "Z");
-                break;
-            case KEY_MATERIAL:
-                handleKeyMaterialChat(player, data.cacheName, message);
-                break;
-            case KEY_NAME:
-                handleKeyNameChat(player, data.cacheName, message);
-                break;
-            case KEY_LORE:
-                handleKeyLoreChat(player, data.cacheName, message);
-                break;
-            case KEY_CMD:
-                handleKeyCMDChat(player, data.cacheName, message);
-                break;
-            case KEY_FLAGS:
-                handleKeyFlagsChat(player, data.cacheName, message);
-                break;
+        if (message.equalsIgnoreCase("cancel")) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    cancelSelectionMode(player);
+                }
+            }.runTask(plugin);
+            return;
         }
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                switch (data.mode) {
+                    case SELECTION:
+                        handleSelectionModeChat(player, data.cacheName, message);
+                        break;
+                    case REPLACE_BLOCK:
+                        handleReplaceBlockModeChat(player, data.cacheName, message);
+                        break;
+                    case RENAME:
+                        handleRenameModeChat(player, data.cacheName, message);
+                        break;
+                    case HOLOGRAM_TEXT:
+                        handleHologramTextModeChat(player, data.cacheName, message);
+                        break;
+                    case HOLOGRAM_OFFSET_X:
+                        handleOffsetChat(player, data.cacheName, message, "X");
+                        break;
+                    case HOLOGRAM_OFFSET_Y:
+                        handleOffsetChat(player, data.cacheName, message, "Y");
+                        break;
+                    case HOLOGRAM_OFFSET_Z:
+                        handleOffsetChat(player, data.cacheName, message, "Z");
+                        break;
+                    case KEY_MATERIAL:
+                        handleKeyMaterialChat(player, data.cacheName, message);
+                        break;
+                    case KEY_NAME:
+                        handleKeyNameChat(player, data.cacheName, message);
+                        break;
+                    case KEY_LORE:
+                        handleKeyLoreChat(player, data.cacheName, message);
+                        break;
+                    case KEY_CMD:
+                        handleKeyCMDChat(player, data.cacheName, message);
+                        break;
+                    case KEY_FLAGS:
+                        handleKeyFlagsChat(player, data.cacheName, message);
+                        break;
+                }
+            }
+        }.runTask(plugin);
     }
 
     private void handleSelectionModeChat(Player player, String cacheName, String message) {
@@ -298,6 +271,7 @@ public class CacheModeListener implements Listener {
         if (parts.length != 5) {
             activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "cache.invalid-coordinates-format", ph);
+            plugin.error("Игрок &#FB8808" + player.getName() + " &fввел некорректный формат координат тайника: &#FB8808" + message + "&f...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -310,6 +284,7 @@ public class CacheModeListener implements Listener {
         } catch (NumberFormatException e) {
             activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "cache.invalid-coordinates", ph);
+            plugin.error("Игрок &#FB8808" + player.getName() + " &fуказал нечисловые значения координат тайника...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -320,6 +295,7 @@ public class CacheModeListener implements Listener {
             activeModes.remove(player.getUniqueId());
             ph.put("world", worldName);
             configManager.executeActions(player, "cache.invalid-world", ph);
+            plugin.error("Указанный мир &#FB8808" + worldName + " &fне найден в системе сервера...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -335,6 +311,7 @@ public class CacheModeListener implements Listener {
             activeModes.remove(player.getUniqueId());
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.replace-block.invalid", ph);
+            plugin.error("Указанный ID материала &#FB8808" + blockId + " &fне является полноценным блоком...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -353,6 +330,7 @@ public class CacheModeListener implements Listener {
             activeModes.remove(player.getUniqueId());
             ph.put("name-cache", existingCache.getDisplayName());
             configManager.executeActions(player, "cache.already-exists", ph);
+            plugin.error("Не удалось привязать локацию, там уже расположен тайник &#FB8808" + existingCache.name + "&f...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -360,6 +338,7 @@ public class CacheModeListener implements Listener {
         activeModes.remove(player.getUniqueId());
         cache.setLocation(location);
         cache.setBlockType(blockType);
+        plugin.log("Игрок &#ffff00" + player.getName() + " &fуспешно настроил физические координаты тайника &#ffff00" + cacheName + " &fчерез текстовый чат");
 
         ph.put("x", String.valueOf(location.getBlockX()));
         ph.put("y", String.valueOf(location.getBlockY()));
@@ -381,14 +360,6 @@ public class CacheModeListener implements Listener {
             return;
         }
 
-        org.bukkit.Location location = cache.getLocation();
-        if (location == null) {
-            configManager.executeActions(player, "cache.not-found", ph);
-            activeModes.remove(player.getUniqueId());
-            reopenLastMenu(player, cacheName);
-            return;
-        }
-
         Material newBlockType;
         try {
             newBlockType = Material.valueOf(blockId.toUpperCase());
@@ -399,6 +370,7 @@ public class CacheModeListener implements Listener {
             activeModes.remove(player.getUniqueId());
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.replace-block.invalid", ph);
+            plugin.error("Введен некорректный ID материала &#FB8808" + blockId + " &fдля плановой замены блока...");
             reopenLastMenu(player, cacheName);
             return;
         }
@@ -407,20 +379,20 @@ public class CacheModeListener implements Listener {
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.replace-block.same", ph);
             activeModes.remove(player.getUniqueId());
+            plugin.error("Новый тип блока тайника полностью совпадает со старым: &#FB8808" + blockId + "&f...");
             reopenLastMenu(player, cacheName);
             return;
         }
 
         activeModes.remove(player.getUniqueId());
         cache.setBlockType(newBlockType);
+        plugin.log("Физический материал блока тайника &#ffff00" + cacheName + " &fуспешно изменен на &#ffff00" + newBlockType.name());
         ph.put("block-id", newBlockType.name().toLowerCase());
         configManager.executeActions(player, "interaction.replace-block.completed", ph);
         reopenLastMenu(player, cacheName);
     }
 
-    private void handleRenameModeChat(Player player, String cacheName, String newNameRaw) {
-        String newName = plugin.getConfigManager().sanitizeCacheName(newNameRaw.trim());
-
+    private void handleRenameModeChat(Player player, String cacheName, String newDisplayName) {
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cacheName);
@@ -432,34 +404,15 @@ public class CacheModeListener implements Listener {
             return;
         }
 
-        if (newName.isEmpty()) {
-            configManager.executeActions(player, "interaction.rename.empty-name", ph);
-            activeModes.remove(player.getUniqueId());
-            reopenLastMenu(player, cacheName);
-            return;
-        }
-
-        ph.put("new-name", newName);
-
-        if (cacheManager.getCache(newName) != null) {
-            configManager.executeActions(player, "interaction.rename.already-exists", ph);
-            activeModes.remove(player.getUniqueId());
-            reopenLastMenu(player, cacheName);
-            return;
-        }
-
         activeModes.remove(player.getUniqueId());
+        configManager.setCacheDisplayName(cacheName, newDisplayName);
+        cache.load();
 
-        if (cacheManager.renameCache(cacheName, newName)) {
-            ph.put("old-name", cacheName);
-            ph.put("new-name", newName);
-            configManager.executeActions(player, "interaction.rename.completed", ph);
+        plugin.log("Отображаемое имя тайника &#ffff00" + cacheName + " &fизменено на &#ffff00" + newDisplayName);
 
-            reopenLastMenu(player, newName);
-        } else {
-            configManager.executeActions(player, "interaction.rename.failed", ph);
-            reopenLastMenu(player, cacheName);
-        }
+        ph.put("display-name", newDisplayName);
+        configManager.executeActions(player, "interaction.rename.completed", ph);
+        reopenLastMenu(player, cacheName);
     }
 
     private void handleHologramTextModeChat(Player player, String cacheName, String newText) {
@@ -477,6 +430,7 @@ public class CacheModeListener implements Listener {
         cache.setHologramText(newText);
 
         plugin.getHologramManager().updateHologram(cacheName, newText);
+        plugin.log("Текст описания голограммы для тайника &#ffff00" + cacheName + " &fуспешно изменен игроком &#ffff00" + player.getName());
 
         ph.put("name-cache", cache.getDisplayName());
         configManager.executeActions(player, "interaction.hologram.change-text.completed", ph);
@@ -513,9 +467,11 @@ public class CacheModeListener implements Listener {
             ph.put("offset", String.valueOf(newOffset));
             configManager.executeActions(player, actionPath, ph);
             plugin.getHologramManager().updateHologram(cacheName, cache.getHologramText());
+            plugin.log("Смещение голограммы тайника &#ffff00" + cacheName + " &fпо оси &#ffff00" + axis + " &fустановлено на &#ffff00" + newOffset);
         } catch (NumberFormatException e) {
             activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "interaction.hologram.offset-invalid-number");
+            plugin.error("Введено некорректное дробное число для смещения по оси &#FB8808" + axis + "&f...");
         }
         activeModes.remove(player.getUniqueId());
         reopenLastMenu(player, cacheName);
@@ -531,6 +487,7 @@ public class CacheModeListener implements Listener {
             Map<String, String> ph = new HashMap<>();
             ph.put("material", materialStr);
             configManager.executeActions(player, "key.change-material.invalid", ph);
+            plugin.error("Указанный тип материала ключа не обнаружен в Bukkit API: &#FB8808" + materialStr + "&f...");
             return;
         }
 
@@ -539,58 +496,37 @@ public class CacheModeListener implements Listener {
         ph.put("name-cache", cache.getDisplayName());
         ph.put("key-material", mat.name());
         configManager.executeActions(player, "key.material-changed", ph);
+        plugin.log("Материал идентификатора ключа для тайника &#ffff00" + cacheName + " &fизменен на &#ffff00" + mat.name());
 
         activeModes.remove(player.getUniqueId());
         reopenLastMenu(player, cacheName);
     }
 
-    private void handleKeyNameChat(Player player, String cacheName, String newName) {
+    private void handleKeyNameChat(Player player, String cacheName, String newKeyName) {
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
         if (cache == null) return;
 
-        if (newName.trim().equalsIgnoreCase("none")) {
-            cache.setKeyName(null);
-        } else {
-            cache.setKeyName(newName);
-        }
-
+        cache.setKeyName(newKeyName);
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cache.getDisplayName());
+        ph.put("key-name", newKeyName);
         configManager.executeActions(player, "key.name-changed", ph);
+        plugin.log("Кастомное имя ключа для тайника &#ffff00" + cacheName + " &fизменено на &#ffff00" + newKeyName);
 
         activeModes.remove(player.getUniqueId());
         reopenLastMenu(player, cacheName);
     }
 
-    private void handleKeyLoreChat(Player player, String cacheName, String input) {
+    private void handleKeyLoreChat(Player player, String cacheName, String newKeyLore) {
         CacheManager.Cache cache = cacheManager.getCache(cacheName);
-        if (cache == null) {
-            activeModes.remove(player.getUniqueId());
-            return;
-        }
+        if (cache == null) return;
 
-        List<String> newLore;
-        String trimmed = input.trim();
-
-        if (trimmed.equalsIgnoreCase("none")) {
-            newLore = new ArrayList<>();
-        } else {
-            String processed = input.replace("\\n", "\n");
-            newLore = Arrays.stream(processed.split("\n"))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
-
-            if (newLore.stream().allMatch(String::isEmpty)) {
-                newLore = new ArrayList<>();
-            }
-        }
-
-        cache.setKeyLore(newLore);
-        configManager.saveCacheConfig(cacheName);
-
+        List<String> lines = Arrays.asList(newKeyLore.split("\\\\n"));
+        cache.setKeyLore(lines);
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cache.getDisplayName());
         configManager.executeActions(player, "key.lore-changed", ph);
+        plugin.log("Кастомное описание (Lore) ключа для тайника &#ffff00" + cacheName + " &fуспешно обновлено");
 
         activeModes.remove(player.getUniqueId());
         reopenLastMenu(player, cacheName);
@@ -607,12 +543,14 @@ public class CacheModeListener implements Listener {
             ph.put("name-cache", actualCache.getDisplayName());
             ph.put("key-cmd", String.valueOf(cmd));
             configManager.executeActions(player, "key.cmd-changed", ph);
+            plugin.log("Параметр CustomModelData ключа тайника &#ffff00" + cacheName + " &fизменен на &#ffff00" + cmd);
 
             activeModes.remove(player.getUniqueId());
             reopenLastMenu(player, cacheName);
         } catch (NumberFormatException e) {
             activeModes.remove(player.getUniqueId());
             configManager.executeActions(player, "key.change-cmd.invalid");
+            plugin.error("Введено невалидное целочисленное значение CustomModelData ключа: &#FB8808" + cmdStr + "&f...");
         }
     }
 
@@ -635,6 +573,7 @@ public class CacheModeListener implements Listener {
             Map<String, String> ph = new HashMap<>();
             ph.put("flag", flagName);
             configManager.executeActions(player, "key.change-flags.invalid", ph);
+            plugin.error("Указанное наименование мета-флага предмета не существует: &#FB8808" + flagName + "&f...");
             return;
         }
 
@@ -645,6 +584,7 @@ public class CacheModeListener implements Listener {
         if (isRemove) {
             if (cache.removeKeyFlag(flagName)) {
                 configManager.executeActions(player, "key.change-flags.removed", ph);
+                plugin.log("С предмета ключа тайника &#ffff00" + cacheName + " &fуспешно удален флаг &#ffff00" + flagName);
             } else {
                 activeModes.remove(player.getUniqueId());
                 configManager.executeActions(player, "key.change-flags.not-found", ph);
@@ -653,6 +593,7 @@ public class CacheModeListener implements Listener {
         } else {
             if (cache.addKeyFlag(flagName)) {
                 configManager.executeActions(player, "key.change-flags.added", ph);
+                plugin.log("На предмет ключа тайника &#ffff00" + cacheName + " &fуспешно добавлен флаг &#ffff00" + flagName);
             } else {
                 activeModes.remove(player.getUniqueId());
                 configManager.executeActions(player, "key.change-flags.already-exists", ph);
@@ -666,18 +607,14 @@ public class CacheModeListener implements Listener {
     }
 
     private void reopenLastMenu(Player player, String cacheName) {
-        String menu = lastMenuFile.remove(player.getUniqueId());
-        if (menu == null) menu = "key-menu.yml";
-        player.closeInventory();
-        String finalMenu = menu;
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (menuManager != null) menuManager.openMenu(player, cacheName, finalMenu);
-        }, 3L);
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        cancelSelectionMode(event.getPlayer());
-        lastMenuFile.remove(event.getPlayer().getUniqueId());
+        String menuFile = lastMenuFile.remove(player.getUniqueId());
+        if (menuFile != null && menuManager != null) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    menuManager.openMenu(player, cacheName, menuFile, 1);
+                }
+            }.runTask(plugin);
+        }
     }
 }

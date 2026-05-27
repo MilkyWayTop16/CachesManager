@@ -18,11 +18,10 @@ public class AnimationsManager implements Listener {
 
     public AnimationsManager(CachesManager plugin, HologramManager hologramManager) {
         PacketPlatform packetPlatform = AnimationEngineConfigurator.selectPacketPlatform();
-        HologramPlatform hologramPlatform = AnimationEngineConfigurator.selectHologramPlatform();
         AnimationView animationView = AnimationEngineConfigurator.selectAnimationView(plugin, packetPlatform);
 
         this.registry = new AnimationRegistry(plugin);
-        this.executor = new AnimationExecutor(plugin, hologramPlatform, registry, animationView);
+        this.executor = new AnimationExecutor(plugin, registry, animationView);
         this.listener = new AnimationListener(plugin, executor);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
     }
@@ -46,16 +45,8 @@ public class AnimationsManager implements Listener {
         return registry.getPrevious(currentAnimation);
     }
 
-    public void forceFinishAnimationForPlayer(Player player) {
-        executor.forceFinishAnimationForPlayer(player);
-    }
-
-    public void givePendingLootToPlayer(Player player) {
-        executor.givePendingLootToPlayer(player);
-    }
-
     public void removeAnimationArtifacts(String cacheName) {
-        executor.getAnimationView().remove(cacheName);
+        executor.removeAnimationArtifacts(cacheName);
     }
 
     public void clearAllAnimations() {

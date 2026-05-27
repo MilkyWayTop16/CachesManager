@@ -1,7 +1,9 @@
 package org.gw.cachesmanager.animations;
 
 import org.bukkit.*;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Firework;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -9,8 +11,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import org.gw.cachesmanager.CachesManager;
-import org.gw.cachesmanager.animations.platform.HologramPlatform;
 import org.gw.cachesmanager.animations.view.AnimationView;
+import org.gw.cachesmanager.animations.view.LegacyAnimationView;
 import org.gw.cachesmanager.managers.CacheManager;
 
 import java.util.*;
@@ -18,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AnimationExecutor {
     private final CachesManager plugin;
-    private final HologramPlatform hologramPlatform;
     private final AnimationRegistry registry;
     private final AnimationView animationView;
 
@@ -30,9 +31,8 @@ public class AnimationExecutor {
     private final Map<String, Vector[]> circleMathCache = new ConcurrentHashMap<>();
     private final Map<String, Particle.DustOptions> dustOptionsCache = new ConcurrentHashMap<>();
 
-    public AnimationExecutor(CachesManager plugin, HologramPlatform hologramPlatform, AnimationRegistry registry, AnimationView animationView) {
+    public AnimationExecutor(CachesManager plugin, AnimationRegistry registry, AnimationView animationView) {
         this.plugin = plugin;
-        this.hologramPlatform = hologramPlatform;
         this.registry = registry;
         this.animationView = animationView;
     }
@@ -46,10 +46,14 @@ public class AnimationExecutor {
 
     public void startAnimation(String cacheName, Player player, ItemStack item, Location baseLocation, Animation animation) {
         CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-        if (cache == null) return;
+        if (cache == null) {
+            plugin.error("Не удалось запустить анимацию, так как тайник &#FB8808" + cacheName + " &fне найден в базе...");
+            return;
+        }
 
         activeAnimationLoot.put(cacheName, item);
         playerActiveCaches.put(player.getUniqueId(), cacheName);
+        plugin.log("Инициализация запуска анимации &#ffff00" + animation.getKey() + " &fдля тайника &#ffff00" + cacheName);
 
         if ("firework".equals(animation.getKey())) {
             startFireworkDelayPhase(cacheName, player, item, baseLocation, animation, cache);
@@ -135,17 +139,20 @@ public class AnimationExecutor {
             if (player.getInventory().firstEmpty() == -1) {
                 player.getWorld().dropItemNaturally(player.getLocation(), item);
                 plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
+                plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю");
             } else {
                 player.getInventory().addItem(item);
+                plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан в инвентарь игрока &#ffff00" + player.getName());
             }
         } else if (player != null) {
             pendingLoot.put(player.getUniqueId(), item);
+            plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания");
         } else if (baseLocation != null && baseLocation.getWorld() != null) {
             baseLocation.getWorld().dropItemNaturally(baseLocation, item);
         }
 
         cache.setInUse(false);
-        if (cache.isHologramEnabled() && cache.getLocation() != null) {
+        if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
             plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
         }
     }
@@ -239,7 +246,7 @@ public class AnimationExecutor {
             CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
             if (cache != null) {
                 cache.setInUse(false);
-                if (cache.isHologramEnabled() && cache.getLocation() != null) {
+                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
                     plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
                 }
             }
@@ -253,6 +260,7 @@ public class AnimationExecutor {
                 }
             }
             animationView.remove(cacheName);
+            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпринудительно остановлена для игрока &#ffff00" + player.getName());
         }
     }
 
@@ -263,6 +271,70 @@ public class AnimationExecutor {
             player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
         } else {
             player.getInventory().addItem(item.clone());
+        }
+        plugin.log("Отложенная награда тайника успешно выдана вернувшемуся игроку &#ffff00" + player.getName());
+    }
+
+    public void removeAnimationArtifacts(String cacheName) {
+        animationView.remove(cacheName);
+    }
+
+    public void handleChunkUnload(World world, int chunkX, int chunkZ) {
+        if (!(animationView instanceof LegacyAnimationView legacyView)) return;
+
+        for (Map.Entry<String, Item> entry : new HashMap<>(legacyView.getPhantomItems()).entrySet()) {
+            String cacheName = entry.getKey();
+            Item phantomItem = entry.getValue();
+
+            if (phantomItem == null || phantomItem.isDead() || phantomItem.getWorld() == null) continue;
+            if (!phantomItem.getWorld().equals(world)) continue;
+
+            try {
+                Location loc = phantomItem.getLocation();
+                if (loc == null) continue;
+
+                if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
+                    CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+                    if (cache == null || !cache.isInUse()) {
+                        legacyView.remove(cacheName);
+                    }
+                }
+            } catch (Exception ignored) {
+                legacyView.remove(cacheName);
+            }
+        }
+
+        for (Map.Entry<String, ArmorStand> entry : new HashMap<>(legacyView.getItemHolograms()).entrySet()) {
+            String cacheName = entry.getKey();
+            ArmorStand hologram = entry.getValue();
+
+            if (hologram == null || hologram.isDead() || hologram.getWorld() == null) continue;
+            if (!hologram.getWorld().equals(world)) continue;
+
+            try {
+                Location loc = hologram.getLocation();
+                if (loc == null) continue;
+
+                if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
+                    CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+                    if (cache == null || !cache.isInUse()) {
+                        legacyView.remove(cacheName);
+                    }
+                }
+            } catch (Exception ignored) {
+                legacyView.remove(cacheName);
+            }
+        }
+    }
+
+    public void cleanupGhostEntities(Player player) {
+        if (animationView instanceof LegacyAnimationView) {
+            Location center = player.getLocation();
+            for (org.bukkit.entity.Entity entity : center.getWorld().getNearbyEntities(center, 50, 50, 50)) {
+                if (entity.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, "ghost"), org.bukkit.persistence.PersistentDataType.STRING)) {
+                    entity.remove();
+                }
+            }
         }
     }
 
@@ -281,7 +353,7 @@ public class AnimationExecutor {
                 if (cache.getLocation() != null && cache.getLocation().getWorld() != null) {
                     cache.getLocation().getWorld().dropItemNaturally(cache.getLocation().clone().add(0.5, 0.5, 0.5), item.clone());
                 }
-                if (cache.isHologramEnabled() && cache.getLocation() != null) {
+                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
                     plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
                 }
             }
@@ -292,6 +364,7 @@ public class AnimationExecutor {
         playerActiveCaches.clear();
         circleMathCache.clear();
         dustOptionsCache.clear();
+        plugin.log("Все активные анимационные процессы и таски плагина &#ffff00успешно очищены");
     }
 
     private void playSounds(Location loc, List<Animation.SoundEntry> sounds) {
@@ -336,7 +409,7 @@ public class AnimationExecutor {
                 return arr;
             });
 
-            Particle.DustOptions dust = dustOptionsCache.computeIfAbsent(animation.getKey(), k ->
+            final Particle.DustOptions dust = dustOptionsCache.computeIfAbsent(animation.getKey(), k ->
                     new Particle.DustOptions(animation.getAmbientColor(), animation.getAmbientSize()));
 
             int amt = animation.getAmbientParticleAmount();
@@ -350,6 +423,4 @@ public class AnimationExecutor {
             spawnParticleSafely(w, Particle.REDSTONE, center, animation.getAmbientParticleAmount(), animation.getAmbientOffsetX(), animation.getAmbientOffsetY(), animation.getAmbientOffsetZ(), animation.getAmbientParticleSpeed(), null, animation.getAmbientColor(), animation.getAmbientSize());
         }
     }
-
-    public AnimationView getAnimationView() { return animationView; }
 }

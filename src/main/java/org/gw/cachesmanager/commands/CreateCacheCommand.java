@@ -39,7 +39,7 @@ public class CreateCacheCommand {
 
         if (plugin.getCacheManager().createCache(cacheName)) {
             plugin.getConfigManager().executeActions(player, "cache.created", ph);
-            plugin.getMenuManager().openMenu(player, cacheName, "global-menu.yml");
+            plugin.getMenuManager().openMenu(player, cacheName, "global-menu.yml", 1);
         } else {
             plugin.getConfigManager().executeActions(player, "cache.already-exists", ph);
         }

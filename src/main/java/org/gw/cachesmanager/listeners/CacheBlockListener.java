@@ -11,8 +11,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.gw.cachesmanager.CachesManager;
@@ -20,10 +18,8 @@ import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.managers.ConfigManager;
 import org.gw.cachesmanager.managers.ItemManager;
 import org.gw.cachesmanager.managers.MenuManager;
-import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class CacheBlockListener implements Listener {
@@ -64,7 +60,7 @@ public class CacheBlockListener implements Listener {
 
             FileConfiguration menuConfig = configManager.loadMenuConfig("global-menu.yml");
             if (menuConfig == null) {
-                plugin.log("Не удалось загрузить global-menu.yml");
+                plugin.error("Не удалось загрузить файл конфигурации &#FB8808global-menu.yml&f...");
                 return;
             }
 
@@ -90,7 +86,7 @@ public class CacheBlockListener implements Listener {
                     clickMatches = !isShift && isLeftClick;
                     break;
                 default:
-                    plugin.log("Некорректный click-type в global-menu.yml: &#ffff00" + clickTypeStr);
+                    plugin.error("Некорректный тип клика &#FB8808click-type &fв global-menu.yml: &#FB8808" + clickTypeStr + "&f...");
                     clickMatches = isShift && isRightClick;
             }
 
@@ -102,6 +98,7 @@ public class CacheBlockListener implements Listener {
                     configManager.executeActions(player, "errors.no-permission");
                     return;
                 }
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fоткрыл главное меню управления для тайника &#ffff00" + cache.name);
                 menuManager.openMenu(player, cache.name, "global-menu.yml");
                 return;
             }
@@ -141,6 +138,7 @@ public class CacheBlockListener implements Listener {
                 }
 
                 if (cache.open(player)) {
+                    plugin.log("Игрок &#ffff00" + player.getName() + " &fуспешно использовал ключ для открытия тайника &#ffff00" + cache.name);
                     if (keyItem.getAmount() > 1) {
                         keyItem.setAmount(keyItem.getAmount() - 1);
                     } else {
@@ -197,11 +195,13 @@ public class CacheBlockListener implements Listener {
                 event.setDropItems(false);
                 ph.put("name-cache", existingCache.getDisplayName());
                 configManager.executeActions(player, "cache.break-forbidden", ph);
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fпопытался сломать неразрушимый тайник &#ffff00" + existingCache.name);
                 return;
             } else {
                 event.setCancelled(false);
                 ph.put("name-cache", existingCache.getDisplayName());
                 configManager.executeActions(player, "cache.deleted", ph);
+                plugin.log("Тайник &#ffff00" + existingCache.name + " &fбыл физически разрушен игроком &#ffff00" + player.getName());
                 existingCache.setLocation(null);
                 existingCache.setBlockType(null);
                 configManager.saveCacheConfig(existingCache.name);
@@ -225,6 +225,7 @@ public class CacheBlockListener implements Listener {
             plugin.getCacheModeListener().removeSelectionMode(player);
             cache.setLocation(location);
             cache.setBlockType(blockType);
+            plugin.log("Игрок &#ffff00" + player.getName() + " &fустановил физический блок тайника &#ffff00" + cacheName + " &fчерез разрушение блока");
             ph.put("name-cache", cacheName);
             ph.put("x", String.valueOf(location.getBlockX()));
             ph.put("y", String.valueOf(location.getBlockY()));
@@ -232,18 +233,5 @@ public class CacheBlockListener implements Listener {
             ph.put("world", location.getWorld().getName());
             configManager.executeActions(player, "interaction.select-block.set-location", ph);
         }
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        plugin.getCacheModeListener().cancelSelectionMode(player);
-        plugin.getAnimationsManager().forceFinishAnimationForPlayer(player);
-    }
-
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        plugin.getAnimationsManager().givePendingLootToPlayer(player);
     }
 }

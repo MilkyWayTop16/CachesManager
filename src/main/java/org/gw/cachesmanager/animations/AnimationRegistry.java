@@ -34,7 +34,10 @@ public class AnimationRegistry {
         }
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection section = config.getConfigurationSection("animations");
-        if (section == null) return;
+        if (section == null) {
+            plugin.error("Критическая &#FB8808ошибка &fконфигурации! Раздел &#FB8808animations &fне найден в файле &#FB8808animations.yml&f...");
+            return;
+        }
 
         for (String key : section.getKeys(false)) {
             List<Animation.SoundEntry> delaySounds = parseSounds(config, "animations." + key + ".delay.sounds");
@@ -55,7 +58,9 @@ public class AnimationRegistry {
                             Integer.parseInt(colorStr.substring(5, 7), 16)
                     );
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                plugin.error("Не удалось корректно распознать hex-цвет частицы &#FB8808" + colorStr + " &fв анимации &#FB8808" + key + "...");
+            }
 
             float ambientSize = (float) config.getDouble("animations." + key + ".ambient.particles.size", 1.0);
             String ambientShape = config.getString("animations." + key + ".ambient.particles.shape", "box").toLowerCase();
@@ -69,7 +74,9 @@ public class AnimationRegistry {
 
             if ("firework".equals(key)) {
                 String typeStr = config.getString("animations." + key + ".explosion.type", "BALL_LARGE").toUpperCase();
-                try { fwType = FireworkEffect.Type.valueOf(typeStr); } catch (Exception ignored) {}
+                try { fwType = FireworkEffect.Type.valueOf(typeStr); } catch (Exception e) {
+                    plugin.error("Указан неизвестный тип взрыва фейерверка &#FB8808" + typeStr + " &fв анимации firework...");
+                }
                 for (String c : config.getStringList("animations." + key + ".explosion.colors")) {
                     try {
                         if (c != null && c.length() == 7 && c.startsWith("#")) {
@@ -108,6 +115,7 @@ public class AnimationRegistry {
             animations.put(key, animation);
             animationOrder.add(key);
         }
+        plugin.log("Успшено &#ffff00зарегистрировано &fконфигураций уникальных эффектов и анимаций: &#ffff00" + animations.size());
     }
 
     private List<Animation.ParticleEntry> parseParticles(FileConfiguration config, String path) {

@@ -113,9 +113,9 @@ public class UpdateChecker implements Listener {
 
             if (response.statusCode() != 200) {
                 if (response.statusCode() == 403 || response.statusCode() == 429) {
-                    plugin.console("&#ffff00◆ CachesManager &f| Достигнут лимит запросов к GitHub (Http статус &#fb8808" + response.statusCode() + "&f)...");
+                    plugin.error("Достигнут лимит запросов к GitHub (Http статус &#FB8808" + response.statusCode() + "&f)...");
                 } else {
-                    plugin.console("&#ffff00◆ CachesManager &f| Не удалось выполнить проверку обновлений (Http статус &#fb8808" + response.statusCode() + "&f)...");
+                    plugin.error("Не удалось выполнить проверку обновлений (Http статус &#FB8808" + response.statusCode() + "&f)...");
                 }
                 return;
             }
@@ -131,7 +131,7 @@ public class UpdateChecker implements Listener {
                 updateAvailable = true;
                 latestVersion = tagName;
 
-                plugin.console("&#ffff00◆ CachesManager &f| Обнаружена новая версия плагина: &#ffff00" + tagName);
+                plugin.log("Обнаружена новая версия плагина: &#ffff00" + tagName);
 
                 String mode = plugin.getConfigManager().getUpdateNotifyMode();
                 if (!"on-join".equalsIgnoreCase(mode)) {
@@ -140,10 +140,10 @@ public class UpdateChecker implements Listener {
                     );
                 }
             } else {
-                plugin.console("&#ffff00◆ CachesManager &f| Вы используете самую свежую версию плагина!");
+                plugin.log("Вы используете самую свежую версию плагина!");
             }
         } catch (Exception e) {
-            plugin.console("&#ffff00◆ CachesManager &f| Ошибка асинхронной проверки обновлений: &#fb8808" + e.getMessage());
+            plugin.error("Ошибка асинхронной проверки обновлений: &#FB8808" + e.getMessage());
         }
     }
 

@@ -90,13 +90,13 @@ public class CacheManager {
         }
 
         isReloading = false;
-        plugin.log("Успешно инициализировано и загружено файлов тайников: &#ffff00" + caches.size());
+        plugin.log("Успешно &#ffff00инициализировано &fи &#ffff00загружено &fфайлов тайников: &#ffff00" + caches.size());
     }
 
     public boolean createCache(String cacheName) {
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         if (cacheName.isEmpty() || caches.containsKey(cacheName)) {
-            plugin.error("Не удалось создать тайник. Имя некорректно или уже занято: &#ffff00" + cacheName);
+            plugin.error("Не удалось создать тайник, так как имя некорректно или уже занято: &#FB8808" + cacheName + "...");
             return false;
         }
         configManager.createCacheConfig(cacheName);
@@ -114,16 +114,16 @@ public class CacheManager {
     public boolean renameCache(String oldName, String newName) {
         newName = plugin.getConfigManager().sanitizeCacheName(newName);
         if (newName.isEmpty() || caches.containsKey(newName)) {
-            plugin.error("Не удалось переименовать тайник. Имя некорректно или занято: &#ffff00" + newName);
+            plugin.error("Не удалось переименовать тайник, так как имя некорректно или занято: &#FB8808" + newName + "...");
             return false;
         }
         Cache cache = caches.get(oldName);
         if (cache == null) {
-            plugin.error("Тайник для выполнения переименования не найден в кэше: &#ffff00" + oldName);
+            plugin.error("Тайник для выполнения переименования не найден в кэше: &#FB8808" + oldName + "...");
             return false;
         }
         if (cache.isInUse()) {
-            plugin.error("Отклонено переименование тайника &#ffff00" + oldName + " &f— объект заблокирован анимацией открытия!");
+            plugin.error("Отклонено переименование тайника &#FB8808" + oldName + " &f, так как он заблокирован анимацией открытия...");
             return false;
         }
 
@@ -135,7 +135,7 @@ public class CacheManager {
 
         if (!configManager.renameCacheConfig(oldName, newName)) {
             caches.put(oldName, cache);
-            plugin.error("Критический сбой переименования файла конфигурации на диске для тайника: &#ffff00" + oldName);
+            plugin.error("Критический &#FB8808сбой &fпереименования файла конфигурации на диске для тайника: &#FB8808" + oldName + "...");
             return false;
         }
 
@@ -146,7 +146,7 @@ public class CacheManager {
             hologramManager.createHologram(newName, cache.getLocation(), cache.getHologramText());
         }
 
-        plugin.log("Тайник успешно переименован в файловой системе: &#ffff00" + oldName + " &f→ &#ffff00" + newName);
+        plugin.log("Тайник успешно переименован с &#ffff00" + oldName + " &fна &#ffff00" + newName);
         return true;
     }
 
@@ -156,7 +156,7 @@ public class CacheManager {
             return false;
         }
         if (cache.isInUse()) {
-            plugin.error("Запрос на удаление отклонен, так как тайник &#ffff00" + cacheName + " &fв данный момент открывается игроком...");
+            plugin.error("Запрос на удаление отклонен, так как тайник &#FB8808" + cacheName + " &fв данный момент открывается игроком...");
             return false;
         }
 
@@ -262,11 +262,11 @@ public class CacheManager {
             load();
         }
 
-        void load() {
+        public void load() {
             FileConfiguration config = configManager.loadCacheConfig(name);
             if (config == null) {
                 this.lootWithChances = new ArrayList<>();
-                plugin.log("Не удалось загрузить конфигурацию для тайника: &#ffff00" + name);
+                plugin.error("Не удалось загрузить конфигурацию для тайника: &#FB8808" + name + "...");
                 return;
             }
             this.location = configManager.getCacheLocation(config);
@@ -446,10 +446,10 @@ public class CacheManager {
             if (loc != null && blockType != null) {
                 plugin.getServer().getScheduler().runTask(plugin, () -> loc.getBlock().setType(blockType));
             }
-            if (isHologramEnabled()) {
-                hologramManager.removeHologram(name);
+            if (isHologramEnabled() && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().removeHologram(name);
                 if (loc != null) {
-                    hologramManager.createHologram(name, loc, getHologramText());
+                    plugin.getHologramManager().createHologram(name, loc, getHologramText());
                 }
             }
         }
@@ -471,36 +471,42 @@ public class CacheManager {
         public void setHologramText(String newText) {
             this.hologramText = newText;
             configManager.setCacheHologramText(name, newText);
-            if (isHologramEnabled() && location != null) {
-                hologramManager.updateHologram(name, newText);
+            if (isHologramEnabled() && location != null && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().updateHologram(name, newText);
             }
         }
 
         public void setHologramEnabled(boolean enabled) {
             this.hologramEnabled = enabled;
             configManager.setCacheHologramEnabled(name, enabled);
-            if (location != null) {
-                if (enabled) hologramManager.createHologram(name, location, getHologramText());
-                else hologramManager.removeHologram(name);
+            if (location != null && plugin.getHologramManager() != null) {
+                if (enabled) plugin.getHologramManager().createHologram(name, location, getHologramText());
+                else plugin.getHologramManager().removeHologram(name);
             }
         }
 
         public void setHologramOffsetX(double x) {
             this.hologramOffsetX = x;
             configManager.setCacheHologramOffset(name, x, hologramOffsetY, hologramOffsetZ);
-            if (location != null && isHologramEnabled()) hologramManager.updateHologram(name, getHologramText());
+            if (location != null && isHologramEnabled() && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(name, location, getHologramText());
+            }
         }
 
         public void setHologramOffsetY(double y) {
             this.hologramOffsetY = y;
             configManager.setCacheHologramOffset(name, hologramOffsetX, y, hologramOffsetZ);
-            if (location != null && isHologramEnabled()) hologramManager.updateHologram(name, getHologramText());
+            if (location != null && isHologramEnabled() && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(name, location, getHologramText());
+            }
         }
 
         public void setHologramOffsetZ(double z) {
             this.hologramOffsetZ = z;
             configManager.setCacheHologramOffset(name, hologramOffsetX, hologramOffsetY, z);
-            if (location != null && isHologramEnabled()) hologramManager.updateHologram(name, getHologramText());
+            if (location != null && isHologramEnabled() && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(name, location, getHologramText());
+            }
         }
 
         public void setAnimation(String animation) {
@@ -540,7 +546,9 @@ public class CacheManager {
                 statsManager.recordPlayerOpen(this, player.getName());
                 lootHistoryManager.addEntry(name, player.getName(), lootItem);
                 statsManager.addLootGiven(this, 1);
-                hologramManager.removeHologram(name);
+                if (plugin.getHologramManager() != null) {
+                    plugin.getHologramManager().removeHologram(name);
+                }
                 org.gw.cachesmanager.animations.Animation anim = animationsManager.getAnimations().get(animation);
                 if (anim == null) {
                     giveLoot(player, lootItem, ph);
@@ -563,8 +571,8 @@ public class CacheManager {
             }
             setInUse(false);
 
-            if (isHologramEnabled() && location != null) {
-                hologramManager.createHologram(name, location, getHologramText());
+            if (isHologramEnabled() && location != null && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(name, location, getHologramText());
             }
         }
 
