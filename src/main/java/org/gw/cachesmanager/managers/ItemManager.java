@@ -1,6 +1,5 @@
 package org.gw.cachesmanager.managers;
 
-import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -8,16 +7,13 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.utils.CacheKeys;
 
 public class ItemManager {
     private final CachesManager plugin;
-    private final NamespacedKey cacheNameKey;
-    private final NamespacedKey keyUuidKey;
 
     public ItemManager(CachesManager plugin) {
         this.plugin = plugin;
-        this.cacheNameKey = new NamespacedKey(plugin, "cache-name");
-        this.keyUuidKey = new NamespacedKey(plugin, "key-uuid");
     }
 
     public boolean isKey(ItemStack item, String cacheName) {
@@ -25,8 +21,8 @@ public class ItemManager {
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
-        String name = pdc.get(cacheNameKey, PersistentDataType.STRING);
-        String uuid = pdc.get(keyUuidKey, PersistentDataType.STRING);
+        String name = pdc.get(CacheKeys.CACHE_NAME.getNamespacedKey(), PersistentDataType.STRING);
+        String uuid = pdc.get(CacheKeys.KEY_UUID.getNamespacedKey(), PersistentDataType.STRING);
 
         if (name == null || !name.equals(cacheName) || uuid == null) return false;
 
@@ -42,10 +38,10 @@ public class ItemManager {
         ItemMeta meta = key.getItemMeta();
         if (meta != null) {
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
-            pdc.set(cacheNameKey, PersistentDataType.STRING, cacheName);
+            pdc.set(CacheKeys.CACHE_NAME.getNamespacedKey(), PersistentDataType.STRING, cacheName);
 
             String uuid = plugin.getConfigManager().getKeyUuid(cacheName);
-            pdc.set(keyUuidKey, PersistentDataType.STRING, uuid);
+            pdc.set(CacheKeys.KEY_UUID.getNamespacedKey(), PersistentDataType.STRING, uuid);
 
             key.setItemMeta(meta);
         }
@@ -61,6 +57,6 @@ public class ItemManager {
     public boolean isAnyKey(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
-        return meta.getPersistentDataContainer().has(cacheNameKey, PersistentDataType.STRING);
+        return meta.getPersistentDataContainer().has(CacheKeys.CACHE_NAME.getNamespacedKey(), PersistentDataType.STRING);
     }
 }

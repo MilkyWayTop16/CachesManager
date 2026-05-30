@@ -1,9 +1,8 @@
 package org.gw.cachesmanager.configs;
 
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -34,6 +33,21 @@ public class ActionManager {
 
     public void executeActions(Player player, String path, Map<String, String> placeholders) {
         FileConfiguration config = mainConfig.getConfig();
+
+        Object rawActions = config.get("actions." + path);
+
+        if (rawActions == null) return;
+
+        if (rawActions instanceof List) {
+            List<?> list = (List<?>) rawActions;
+            if (list.isEmpty()) return;
+        } else if (rawActions instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) rawActions;
+            if (map.isEmpty()) return;
+        } else if (rawActions instanceof String && ((String) rawActions).trim().isEmpty()) {
+            return;
+        }
+
         List<String> actions = config.getStringList("actions." + path);
         if (actions.isEmpty()) return;
 
@@ -53,13 +67,13 @@ public class ActionManager {
             processed = PlaceholderAPIHook.parse(player, processed);
 
             if (!processed.startsWith("[")) {
-                plugin.error("Обнаружено невалидное действие без квадратных скобок: &#FB8808" + processed + " &f(Путь: &#FB8808" + path + "&f)...");
+                plugin.log("Обнаружено невалидное действие без квадратных скобок: &#FB8808" + processed + " &f(Путь: &#FB8808" + path + "&f)...");
                 continue;
             }
 
             int closingBracket = processed.indexOf("]");
             if (closingBracket == -1) {
-                plugin.error("Обнаружен незакрытый тег действия в строке: &#FB8808" + processed + " &f(Путь: &#FB8808" + path + "&f)...");
+                plugin.log("Обнаружен незакрытый тег действия в строке: &#FB8808" + processed + " &f(Путь: &#FB8808" + path + "&f)...");
                 continue;
             }
 
@@ -75,15 +89,14 @@ public class ActionManager {
                     }
                     if (player != null) {
                         String message = rawValue.startsWith(" ") ? rawValue.substring(1) : rawValue;
-                        player.sendMessage(HexColors.translate(message));
+                        player.sendMessage(HexColors.translateToComponent(message));
                     }
                 }
                 case "[message-console]" -> plugin.console(HexColors.translate(rawValue.trim()));
-                case "[broadcast]" -> Bukkit.broadcastMessage(HexColors.translate(rawValue.trim()));
+                case "[broadcast]" -> Bukkit.broadcast(HexColors.translateToComponent(rawValue.trim()));
                 case "[actionbar]" -> {
                     if (player != null) {
-                        player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                                TextComponent.fromLegacyText(HexColors.translate(rawValue.trim())));
+                        player.sendActionBar(HexColors.translateToComponent(rawValue.trim()));
                     }
                 }
                 case "[console-command]" -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), rawValue.trim());
@@ -99,7 +112,7 @@ public class ActionManager {
                             float pitch = parts.length > 2 ? Float.parseFloat(parts[2]) : 1.0f;
                             player.playSound(player.getLocation(), sound, volume, pitch);
                         } catch (Exception e) {
-                            plugin.error("Не удалось воспроизвести звук &#FB8808" + parts[0] + " &fв триггер-действиях (Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Не удалось воспроизвести звук &#FB8808" + parts[0] + " &fв триггер-действиях (Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
@@ -113,7 +126,7 @@ public class ActionManager {
                             int fadeOut = parts.length > 3 ? Integer.parseInt(parts[3]) : 20;
                             player.sendTitle(title, "", fadeIn, stay, fadeOut);
                         } catch (Exception e) {
-                            plugin.error("Некорректный формат параметров действия [title] (Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Некорректный формат параметров действия [title] (Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
@@ -127,7 +140,7 @@ public class ActionManager {
                             int fadeOut = parts.length > 3 ? Integer.parseInt(parts[3]) : 20;
                             player.sendTitle("", subtitle, fadeIn, stay, fadeOut);
                         } catch (Exception e) {
-                            plugin.error("Некорректный формат параметров действия [subtitle] (Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Некорректный формат параметров действия [subtitle] (Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
@@ -140,7 +153,7 @@ public class ActionManager {
                             int amplifier = parts.length > 2 ? Integer.parseInt(parts[2]) - 1 : 0;
                             player.addPotionEffect(new PotionEffect(type, duration, amplifier));
                         } catch (Exception e) {
-                            plugin.error("Ошибка добавления эффекта зелья &#FB8808" + parts[0] + " &fв действиях (Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Ошибка добавления эффекта зелья &#FB8808" + parts[0] + " &fв действиях (Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
@@ -154,7 +167,7 @@ public class ActionManager {
                             World world = Bukkit.getWorld(parts[3]);
                             if (world != null) player.teleport(new Location(world, x, y, z));
                         } catch (Exception e) {
-                            plugin.error("Ошибка парсинга локации для телепортации в действиях (Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Ошибка парсинга локации для телепортации в действиях (Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
@@ -166,25 +179,25 @@ public class ActionManager {
                             int amount = Integer.parseInt(parts[1]);
                             player.getInventory().addItem(new ItemStack(material, amount));
                         } catch (Exception e) {
-                            plugin.error("Не удалось выдать предмет по материалу &#FB8808" + parts[0] + " &f(Путь: &#FB8808" + path + "&f)...");
+                            plugin.log("Не удалось выдать предмет по материалу &#FB8808" + parts[0] + " &f(Путь: &#FB8808" + path + "&f)...");
                         }
                     }
                 }
-                default -> plugin.error("Обнаружен неизвестный тип кастомного действия &#FB8808" + actionTag + " &f(Путь: &#FB8808" + path + "&f)...");
+                default -> plugin.log("Обнаружен неизвестный тип кастомного действия &#FB8808" + actionTag + " &f(Путь: &#FB8808" + path + "&f)...");
             }
         }
     }
 
     private void sendConfirmationMessage(Player player, String line, String cacheName) {
         if (player == null) return;
-        ComponentBuilder builder = new ComponentBuilder();
+        Component message = Component.empty();
         String remaining = line;
         while (true) {
             int confirmIdx = remaining.indexOf("{confirm-button}");
             int cancelIdx = remaining.indexOf("{cancel-button}");
             if (confirmIdx == -1 && cancelIdx == -1) {
                 if (!remaining.isEmpty()) {
-                    builder.append(TextComponent.fromLegacyText(HexColors.translate(remaining)));
+                    message = message.append(HexColors.translateToComponent(remaining));
                 }
                 break;
             }
@@ -192,17 +205,17 @@ public class ActionManager {
             String buttonType = (nextIdx == confirmIdx) ? "confirm" : "cancel";
             if (nextIdx > 0) {
                 String before = remaining.substring(0, nextIdx);
-                builder.append(TextComponent.fromLegacyText(HexColors.translate(before)));
+                message = message.append(HexColors.translateToComponent(before));
             }
-            TextComponent button = createConfirmationButton(buttonType, cacheName);
-            builder.append(button);
+            Component button = createConfirmationButton(buttonType, cacheName);
+            message = message.append(button);
             int buttonLength = buttonType.equals("confirm") ? 16 : 15;
             remaining = remaining.substring(nextIdx + buttonLength);
         }
-        player.spigot().sendMessage(builder.create());
+        player.sendMessage(message);
     }
 
-    private TextComponent createConfirmationButton(String type, String cacheName) {
+    private Component createConfirmationButton(String type, String cacheName) {
         FileConfiguration config = mainConfig.getConfig();
         String textPath = "actions.cache.delete.confirm-buttons." + type + ".text";
         String hoverPath = "actions.cache.delete.confirm-buttons." + type + ".hover";
@@ -210,14 +223,13 @@ public class ActionManager {
         String hoverText = config.getString(hoverPath, "");
         buttonText = buttonText.replace("{name-cache}", cacheName);
         hoverText = hoverText.replace("{name-cache}", cacheName);
-        String translatedText = HexColors.translate(buttonText);
-        TextComponent button = new TextComponent(TextComponent.fromLegacyText(translatedText));
+        Component button = HexColors.translateToComponent(buttonText);
         if (!hoverText.isEmpty()) {
-            String translatedHover = HexColors.translate(hoverText);
-            button.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TextComponent.fromLegacyText(translatedHover)));
+            Component hoverComponent = HexColors.translateToComponent(hoverText);
+            button = button.hoverEvent(HoverEvent.showText(hoverComponent));
         }
         String command = type.equals("confirm") ? "/cm deletecache \"" + cacheName + "\" confirm" : "/cm deletecache \"" + cacheName + "\" cancel";
-        button.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
+        button = button.clickEvent(ClickEvent.runCommand(command));
         return button;
     }
 }

@@ -9,12 +9,14 @@ import org.gw.cachesmanager.commands.CommandsHandler;
 import org.gw.cachesmanager.commands.CommandsTabCompleter;
 import org.gw.cachesmanager.listeners.*;
 import org.gw.cachesmanager.managers.*;
+import org.gw.cachesmanager.storage.DatabaseManager;
 import org.gw.cachesmanager.utils.UpdateChecker;
 import org.gw.cachesmanager.utils.PlaceholderAPIHook;
 
 public class CachesManager extends JavaPlugin {
 
     @Getter private ConfigManager configManager;
+    @Getter private DatabaseManager databaseManager;
     @Getter private CacheManager cacheManager;
     @Getter private HologramManager hologramManager;
     @Getter private ItemManager itemManager;
@@ -24,6 +26,7 @@ public class CachesManager extends JavaPlugin {
     @Getter private LootHistoryManager lootHistoryManager;
     @Getter private UpdateChecker updateChecker;
     @Getter private ConfirmDeleteListener confirmDeleteListener;
+    @Getter private StatsManager statsManager;
 
     @Override
     public void onEnable() {
@@ -46,43 +49,76 @@ public class CachesManager extends JavaPlugin {
         console("&f");
         console("&#00FF5A◆ CachesManager &f| Проверка &#00FF5Aнеобходимых &fзависимостей...");
 
+        if (!checkRequiredDependencies()) {
+            return false;
+        }
+
+        initCoreSystems();
+        initHologramAndAnimationSystems();
+        initCacheCore();
+        initMenusAndListeners();
+        registerCommands();
+
+        Bukkit.getScheduler().runTaskLater(this, cacheManager::loadCaches, 5L);
+
+        return true;
+    }
+
+    private boolean checkRequiredDependencies() {
         boolean hasPacketLib = Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")
                 || Bukkit.getPluginManager().isPluginEnabled("PacketEvents");
-        boolean hasHoloLib = Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")
-                || Bukkit.getPluginManager().isPluginEnabled("FancyHolograms");
 
         if (!hasPacketLib) {
             error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка...");
             return false;
         }
+
         console("&#00FF5A◆ CachesManager &f| Зависимости &#00FF5Aуспешно &fподключены!");
+        return true;
+    }
 
-        console("&#00FF5A◆ CachesManager &f| Чтение файлов конфигурации и загрузка ресурсов...");
+    private void initCoreSystems() {
+        console("&#00FF5A◆ CachesManager &f| Чтение &#00FF5Aфайлов конфигурации &fи &#00FF5Aзагрузка &fресурсов...");
         configManager = new ConfigManager(this);
-        itemManager = new ItemManager(this);
 
+        try {
+            org.apache.logging.log4j.core.config.Configurator.setLevel("com.zaxxer.hikari", org.apache.logging.log4j.Level.WARN);
+            org.apache.logging.log4j.core.config.Configurator.setLevel("com.zaxxer.hikari.pool", org.apache.logging.log4j.Level.WARN);
+        } catch (Throwable ignored) {}
+
+        databaseManager = new DatabaseManager(this);
+        databaseManager.cleanupOldBackups();
+
+        itemManager = new ItemManager(this);
         PlaceholderAPIHook.init();
 
         console("&#00FF5A◆ CachesManager &f| Инициализация &#00FF5Aсистемы проверки &fобновлений...");
         updateChecker = new UpdateChecker(this);
+    }
 
+    private void initHologramAndAnimationSystems() {
         console("&#00FF5A◆ CachesManager &f| Инициализация &#00FF5Aсистем голограмм &fи &#00FF5Aдвижка &fанимаций...");
         hologramManager = new HologramManager(this);
         animationsManager = new AnimationsManager(this, hologramManager);
 
-        if (!hasHoloLib) {
-            log("Сторонние плагины голограмм не найдены, активирован встроенный движок ModernMinecraftPlatform");
+        if (!Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")
+                && !Bukkit.getPluginManager().isPluginEnabled("FancyHolograms")) {
+            log("Сторонние плагины голограмм не найдены, так что активирован встроенный движок ModernMinecraftPlatform для показа голограмм...");
         }
+    }
 
+    private void initCacheCore() {
         console("&#00FF5A◆ CachesManager &f| Подготовка &#00FF5Aядра &fи &#00FF5Aстатистики &fтайников...");
-        StatsManager statsManager = new StatsManager(this, configManager);
+        statsManager = new StatsManager(this, configManager);
 
         console("&#00FF5A◆ CachesManager &f| Инициализация менеджера &#00FF5Aистории &fлута...");
-        lootHistoryManager = new LootHistoryManager(this);
+        lootHistoryManager = new LootHistoryManager(this, configManager);
 
         this.cacheManager = new CacheManager(this, configManager, hologramManager, itemManager,
                 animationsManager, statsManager, lootHistoryManager);
+    }
 
+    private void initMenusAndListeners() {
         console("&#00FF5A◆ CachesManager &f| Сборка всех &#00FF5Aменюшек &fтайников...");
         cacheModeListener = new CacheModeListener(this, cacheManager, configManager);
 
@@ -91,44 +127,105 @@ public class CachesManager extends JavaPlugin {
 
         CacheBlockListener cacheBlockListener = new CacheBlockListener(this, cacheManager, itemManager, menuManager, configManager);
         this.confirmDeleteListener = new ConfirmDeleteListener(this);
-        getServer().getPluginManager().registerEvents(this.confirmDeleteListener, this);
 
+        getServer().getPluginManager().registerEvents(this.confirmDeleteListener, this);
         cacheModeListener.setMenuManager(menuManager);
         getServer().getPluginManager().registerEvents(animationsManager, this);
         getServer().getPluginManager().registerEvents(cacheModeListener, this);
         getServer().getPluginManager().registerEvents(cacheBlockListener, this);
         getServer().getPluginManager().registerEvents(updateChecker, this);
+    }
+
+    private void registerCommands() {
         getCommand("cachesmanager").setExecutor(new CommandsHandler(this));
         getCommand("cachesmanager").setTabCompleter(new CommandsTabCompleter(this));
-
-        Bukkit.getScheduler().runTaskLater(this, cacheManager::loadCaches, 5L);
-
-        return true;
     }
 
     public void reloadPlugin() {
+        if (menuManager != null) {
+            menuManager.closeAllMenus();
+        }
+
         String error = configManager.reloadConfig();
         if (error != null) return;
 
-        if (lootHistoryManager != null) {
-            lootHistoryManager.saveAll();
-        }
-
-        console("&#ffff00◆ CachesManager &f| Перезагрузка анимаций...");
-        animationsManager.reloadAnimations();
-
-        console("&#ffff00◆ CachesManager &f| Перезагрузка меню...");
-        if (menuManager != null) menuManager.reload();
-
-        if (lootHistoryManager != null) lootHistoryManager.reload();
-
-        console("&#ffff00◆ CachesManager &f| Перезагрузка тайников...");
-        cacheManager.removeAllHolograms();
-        cacheManager.loadCaches();
+        reloadDatabase();
+        reloadAnimations(false);
+        reloadMenus();
+        reloadCaches();
 
         PlaceholderAPIHook.init();
-
         if (updateChecker != null) updateChecker.reload();
+
+        if (menuManager != null) {
+            menuManager.refreshOpenMenus();
+        }
+    }
+
+    private void reloadDatabase() {
+        if (databaseManager == null) return;
+
+        console("&#ffff00◆ CachesManager &f| Сохранение статистики тайников перед перезагрузкой базы данных...");
+        if (cacheManager != null) cacheManager.saveAllStatsSynchronously();
+
+        console("&#ffff00◆ CachesManager &f| Перезагрузка соединения с базой данных...");
+        console("&#FFFF00◆ CachesManager &f| База данных SQLite перезагружается...");
+        databaseManager.closeConnection();
+        databaseManager.initializeDatabase(false);
+        databaseManager.cleanupOldBackups();
+    }
+
+    private void reloadAnimations() {
+        reloadAnimations(false);
+    }
+
+    private void reloadAnimations(boolean forceClear) {
+        console("&#ffff00◆ CachesManager &f| Перезагрузка анимаций...");
+        animationsManager.reloadAnimations(forceClear);
+    }
+
+    private void reloadMenus() {
+        console("&#ffff00◆ CachesManager &f| Перезагрузка меню...");
+        if (menuManager != null) {
+            menuManager.reload();
+        }
+    }
+
+    private void reloadCaches() {
+        console("&#ffff00◆ CachesManager &f| Перезагрузка тайников...");
+        if (animationsManager != null) {
+            cacheManager.removeHologramsExceptActiveAnimations(animationsManager);
+        } else {
+            cacheManager.removeAllHolograms();
+        }
+        cacheManager.loadCaches();
+    }
+
+    public void forceReloadPlugin() {
+        if (menuManager != null) {
+            menuManager.closeAllMenus();
+        }
+
+        String error = configManager.reloadConfig();
+        if (error != null) return;
+
+        reloadDatabase();
+        reloadAnimations(true);
+        reloadMenus();
+
+        if (cacheManager != null) {
+            cacheManager.removeAllHolograms();
+        }
+        if (cacheManager != null) {
+            cacheManager.loadCaches();
+        }
+
+        PlaceholderAPIHook.init();
+        if (updateChecker != null) updateChecker.reload();
+
+        if (menuManager != null) {
+            menuManager.refreshOpenMenus();
+        }
     }
 
     private void logStartupInfo(long loadTime) {
@@ -150,23 +247,42 @@ public class CachesManager extends JavaPlugin {
     public void onDisable() {
         long startTime = System.currentTimeMillis();
 
+        if (databaseManager != null) {
+            databaseManager.setShuttingDown(true);
+        }
+
+        if (menuManager != null) {
+            menuManager.closeAllMenus();
+        }
+
         console("&#FF5D00◆ CachesManager &f| Начало &#FF5D00выгрузки &fплагина...");
 
         if (updateChecker != null) {
             updateChecker.shutdown();
         }
 
-        if (lootHistoryManager != null) {
-            console("&#FF5D00◆ CachesManager &f| Сохранение всей &#FF5D00истории &fлута...");
-            lootHistoryManager.saveAll();
-        }
-
         if (cacheManager != null) {
             console("&#FF5D00◆ CachesManager &f| Сохранение всех &#FF5D00данных &fтайников...");
             configManager.forceSaveAllCacheConfigs();
 
+            console("&#FF5D00◆ CachesManager &f| Сохранение &#FF5D00статистики тайников &fв базу данных...");
+
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    cacheManager.saveAllStatsSynchronously();
+                } catch (Exception ignored) {}
+            })
+            .orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+            .exceptionally(ex -> null)
+            .join();
+
             if (hologramManager != null) hologramManager.clearAllHolograms();
             if (animationsManager != null) animationsManager.clearAllAnimations();
+        }
+
+        if (databaseManager != null) {
+            console("&#FF5D00◆ CachesManager &f| Закрытие &#FF5D00соединения &fс базой данных...");
+            databaseManager.closeConnection();
         }
 
         long unloadTime = System.currentTimeMillis() - startTime;

@@ -8,6 +8,7 @@ import org.gw.cachesmanager.CachesManager;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,6 +34,29 @@ public class MenuConfigHandler {
         createDefaultFile("menus/history-menu.yml");
         createDefaultFile("menus/key-menu.yml");
         createDefaultFile("animations.yml");
+
+        ConfigUpdater updater = new ConfigUpdater(plugin);
+        updater.update(new File(plugin.getDataFolder(), "animations.yml"), "animations.yml");
+
+        String[] menuFiles = {
+            "global-menu.yml", "loot-menu.yml", "chance-menu.yml", "hologram-menu.yml",
+            "example-menu.yml", "history-menu.yml", "key-menu.yml"
+        };
+
+        for (String menu : menuFiles) {
+            File menuFile = new File(menusFolder, menu);
+            if (menuFile.exists()) {
+                updater.updateMenu(menuFile, "menus/" + menu, null);
+            }
+        }
+
+        File statsMenu = new File(menusFolder, "stats-menu.yml");
+        if (statsMenu.exists()) {
+            updater.updateMenu(statsMenu, "menus/stats-menu.yml", List.of(
+                    "items.general-stats",
+                    "items.records"
+            ));
+        }
     }
 
     private void createDefaultFile(String path) {
@@ -66,7 +90,7 @@ public class MenuConfigHandler {
             menuConfigCache.put(fileName, cfg);
             return cfg;
         } catch (Exception e) {
-            plugin.console("&#ffff00◆ CachesManager &f| Не удалось загрузить меню " + fileName);
+            plugin.error("Не удалось загрузить меню &#FF5D00" + fileName + "...");
             return null;
         }
     }

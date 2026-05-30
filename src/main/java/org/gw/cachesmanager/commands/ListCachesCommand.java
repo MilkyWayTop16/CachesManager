@@ -1,25 +1,39 @@
 package org.gw.cachesmanager.commands;
 
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.managers.ConfigManager;
-import org.bukkit.Location;
-import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ListCachesCommand {
-    private final CachesManager plugin;
+public class ListCachesCommand extends AbstractSubCommand {
 
     public ListCachesCommand(CachesManager plugin) {
-        this.plugin = plugin;
+        super(plugin);
     }
 
-    public boolean execute(CommandSender sender, String[] args) {
+    @Override
+    public String getName() {
+        return "listcaches";
+    }
+
+    @Override
+    public String getPermission() {
+        return "cachesmanager.listcaches";
+    }
+
+    @Override
+    public boolean isPlayerOnly() {
+        return false;
+    }
+
+    @Override
+    protected boolean handle(CommandSender sender, String[] args) {
         if (args.length > 1) {
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.main");
             return true;
@@ -41,7 +55,7 @@ public class ListCachesCommand {
             if (cacheConfig == null) continue;
 
             Location location = configManager.getCacheLocation(cacheConfig);
-            Map<String, String> ph = new HashMap<>();
+            Map<String, String> ph = createPlaceholders();
             ph.put("number", String.valueOf(i + 1));
             ph.put("name-cache", cacheName);
             ph.put("x", location != null ? String.valueOf(location.getBlockX()) : "—");

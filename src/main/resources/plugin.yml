@@ -7,7 +7,7 @@ softdepend: [ProtocolLib, PacketEvents, DecentHolograms, FancyHolograms]
 commands:
   cachesmanager:
     aliases: [cm]
-    usage: /<command> [reload/createcache/menu/givekey/deletecache/listcaches/cancel]
+    usage: /<command> [reload ...]
 permissions:
   cachesmanager.createcache:
     default: op

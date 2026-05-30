@@ -1,12 +1,15 @@
 package org.gw.cachesmanager.menus;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.gw.cachesmanager.CachesManager;
-import org.gw.cachesmanager.managers.CacheManager;
+import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MenuActionHandler {
@@ -18,10 +21,10 @@ public class MenuActionHandler {
 
     public void handleToggleHologram(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newState = !cache.isHologramEnabled();
-        cache.setHologramEnabled(newState);
+        plugin.getCacheManager().setCacheHologramEnabled(cache, newState);
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();
@@ -32,10 +35,10 @@ public class MenuActionHandler {
 
     public void handleToggleUnbreakable(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newState = !cache.isUnbreakable();
-        cache.setUnbreakable(newState);
+        plugin.getCacheManager().setCacheUnbreakable(cache, newState);
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();
@@ -46,14 +49,14 @@ public class MenuActionHandler {
 
     public void handleNextAnimation(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         String next = plugin.getAnimationsManager().getNextAnimation(cache.getAnimation());
         if (next == null) {
             p.sendMessage(HexColors.translate("&cНе удалось переключить анимацию..."));
             return;
         }
-        cache.setAnimation(next);
+        plugin.getCacheManager().setCacheAnimation(cache, next);
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();
@@ -65,14 +68,14 @@ public class MenuActionHandler {
 
     public void handlePreviousAnimation(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         String prev = plugin.getAnimationsManager().getPreviousAnimation(cache.getAnimation());
         if (prev == null) {
             p.sendMessage(HexColors.translate("&cНе удалось переключить анимацию..."));
             return;
         }
-        cache.setAnimation(prev);
+        plugin.getCacheManager().setCacheAnimation(cache, prev);
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();
@@ -85,12 +88,14 @@ public class MenuActionHandler {
     public void handleChanceChange(Player p, int index, boolean increase, int delta, CacheMenuHolder holder,
                                    java.util.function.BiConsumer<String, Integer> initializer, java.util.function.Consumer<Integer> individualUpdater) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null || index < 0 || index >= cache.getLootWithChances().size()) return;
-        int oldChance = cache.getLootWithChances().get(index).getValue();
+        List<Map.Entry<ItemStack, Integer>> loot = cache.getLootWithChances();
+        int oldChance = loot.get(index).getValue();
         int newChance = Math.max(0, Math.min(100, oldChance + (increase ? delta : -delta)));
         plugin.getConfigManager().setItemChance(cacheName, index, newChance);
-        cache.getLootWithChances().set(index, new AbstractMap.SimpleEntry<>(cache.getLootWithChances().get(index).getKey(), newChance));
+        loot.set(index, new AbstractMap.SimpleEntry<>(loot.get(index).getKey(), newChance));
+        plugin.getCacheManager().setCacheLootWithChances(cache, loot);
         initializer.accept(cacheName, index);
         Map<String, String> ph = new HashMap<>();
         ph.put("name-cache", cache.getDisplayName());
@@ -101,10 +106,10 @@ public class MenuActionHandler {
 
     public void handleToggleKeyGlow(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newGlow = !cache.isKeyGlowEnabled();
-        cache.setKeyGlow(newGlow);
+        plugin.getCacheManager().setCacheKeyGlow(cache, newGlow);
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();
@@ -115,9 +120,14 @@ public class MenuActionHandler {
 
     public void handleResetKeyToDefault(Player p, CacheMenuHolder holder, Runnable invalidator) {
         String cacheName = holder.getCacheName();
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
-        cache.resetKeyToDefault();
+        plugin.getCacheManager().setCacheKeyMaterial(cache, "TRIPWIRE_HOOK");
+        plugin.getCacheManager().setCacheKeyName(cache, "&eКлюч от тайника " + cacheName);
+        plugin.getCacheManager().setCacheKeyLore(cache, Arrays.asList("&7Для тайника: " + cacheName, "&7Одноразовый предмет"));
+        plugin.getCacheManager().setCacheKeyCustomModelData(cache, 0);
+        plugin.getCacheManager().setCacheKeyGlow(cache, false);
+        plugin.getCacheManager().setCacheKeyFlags(cache, Arrays.asList("HIDE_ENCHANTS", "HIDE_ATTRIBUTES"));
         plugin.getConfigManager().saveCacheConfig(cacheName);
         invalidator.run();
         Map<String, String> ph = new HashMap<>();

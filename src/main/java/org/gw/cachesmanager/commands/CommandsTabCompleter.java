@@ -58,6 +58,9 @@ public class CommandsTabCompleter implements TabCompleter {
                     .filter(m -> m.toLowerCase().startsWith(last))
                     .collect(Collectors.toList()));
         }
+        else if (args.length == 3 && args[0].equalsIgnoreCase("reload") && args[1].equalsIgnoreCase("all")) {
+            completions.add("-force");
+        }
         else if (args.length == 3 && args[0].equalsIgnoreCase("givekey")) {
             if (args[2].isEmpty()) {
                 completions.add("<Количество>");
@@ -71,7 +74,7 @@ public class CommandsTabCompleter implements TabCompleter {
             }
             completions.addAll(Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
-                    .collect(Collectors.toList()));
+                    .toList());
         }
 
         String lastArg = args[args.length - 1].toLowerCase();

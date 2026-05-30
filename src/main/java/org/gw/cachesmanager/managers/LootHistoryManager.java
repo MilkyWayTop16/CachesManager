@@ -1,197 +1,115 @@
 package org.gw.cachesmanager.managers;
 
-import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.gw.cachesmanager.CachesManager;
-import java.io.File;
-import java.io.IOException;
+import org.gw.cachesmanager.storage.DatabaseManager;
+import org.gw.cachesmanager.utils.HexColors;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Base64;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public class LootHistoryManager {
+
     private final CachesManager plugin;
-    private final File historyFolder;
-    private final Map<String, Deque<HistoryEntry>> historyCache = new ConcurrentHashMap<>();
-    private final Set<String> dirtyHistory = ConcurrentHashMap.newKeySet();
-    private BukkitRunnable batchSaveTask;
-    private final AtomicBoolean savingInProgress = new AtomicBoolean(false);
+    private final ConfigManager configManager;
+    private final DateTimeFormatter dateFormatter;
 
-    public LootHistoryManager(CachesManager plugin) {
+    public LootHistoryManager(CachesManager plugin, ConfigManager configManager) {
         this.plugin = plugin;
-        this.historyFolder = new File(plugin.getDataFolder(), "caches/history");
-        if (!historyFolder.exists()) historyFolder.mkdirs();
-
-        startBatchSaver();
-        loadAllHistories();
+        this.configManager = configManager;
+        this.dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(ZoneId.systemDefault());
     }
 
-    private void startBatchSaver() {
-        if (batchSaveTask != null) batchSaveTask.cancel();
-        batchSaveTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (dirtyHistory.isEmpty() || savingInProgress.get()) return;
-                Set<String> toSave = new HashSet<>(dirtyHistory);
-                dirtyHistory.clear();
-                savingInProgress.set(true);
-                plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-                    try {
-                        for (String cacheName : toSave) saveHistory(cacheName);
-                    } finally {
-                        savingInProgress.set(false);
-                    }
-                });
+    public List<ItemStack> getHistoryItems(String cacheName) {
+        List<ItemStack> items = new ArrayList<>();
+        if (plugin.getDatabaseManager() == null) return items;
+
+
+        plugin.getDatabaseManager().forceFlushPendingHistory();
+
+        List<DatabaseManager.HistoryEntry> entries = plugin.getDatabaseManager().getLootHistorySynchronously(cacheName);
+        FileConfiguration menuCfg = configManager.loadMenuConfig("history-menu.yml");
+        List<String> loreTemplate = menuCfg.getStringList("history-item-settings.lore");
+
+        for (DatabaseManager.HistoryEntry entry : entries) {
+            ItemStack item = entry.getItem().clone();
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) continue;
+
+            List<String> currentLore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+            if (currentLore == null) currentLore = new ArrayList<>();
+
+            String formattedDate = dateFormatter.format(Instant.ofEpochMilli(entry.getTimestamp()));
+            String displayName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                    ? item.getItemMeta().getDisplayName()
+                    : item.getType().name();
+
+            for (String line : loreTemplate) {
+                currentLore.add(HexColors.translate(line
+                        .replace("{dropped-by}", entry.getPlayerName())
+                        .replace("{dropped-at}", formattedDate)));
             }
-        };
-        batchSaveTask.runTaskTimer(plugin, 200L, 200L);
+
+            meta.setLore(currentLore);
+            item.setItemMeta(meta);
+            items.add(item);
+        }
+        return items;
     }
 
-    public void addEntry(String cacheName, String playerName, ItemStack item) {
-        if (cacheName == null || playerName == null || item == null) return;
-
-        int limit = plugin.getConfigManager().getHistoryMaxEntries();
-        Deque<HistoryEntry> deque = historyCache.computeIfAbsent(cacheName, k -> new ArrayDeque<>());
-
-        synchronized (deque) {
-            deque.addFirst(new HistoryEntry(playerName, Instant.now().toEpochMilli(), item.clone()));
-            while (deque.size() > limit) deque.removeLast();
+    public void getHistoryItemsAsync(String cacheName, Consumer<List<ItemStack>> callback) {
+        if (plugin.getDatabaseManager() == null) {
+            callback.accept(new ArrayList<>());
+            return;
         }
 
-        dirtyHistory.add(cacheName);
-    }
 
-    public Deque<HistoryEntry> getHistory(String cacheName) {
-        return historyCache.computeIfAbsent(cacheName, this::loadHistory);
-    }
+        plugin.getDatabaseManager().forceFlushPendingHistory();
 
-    public List<HistoryEntry> getHistorySnapshot(String cacheName) {
-        Deque<HistoryEntry> deque = historyCache.computeIfAbsent(cacheName, this::loadHistory);
-        synchronized (deque) {
-            return new ArrayList<>(deque);
-        }
-    }
+        plugin.getDatabaseManager().getLootHistoryAsync(cacheName).thenAccept(entries -> {
+            FileConfiguration menuCfg = configManager.loadMenuConfig("history-menu.yml");
+            List<String> loreTemplate = menuCfg.getStringList("history-item-settings.lore");
+            List<ItemStack> items = new ArrayList<>();
 
-    private Deque<HistoryEntry> loadHistory(String cacheName) {
-        File file = new File(historyFolder, cacheName + ".yml");
-        if (!file.exists()) return new ArrayDeque<>();
+            for (DatabaseManager.HistoryEntry entry : entries) {
+                ItemStack item = entry.getItem().clone();
+                ItemMeta meta = item.getItemMeta();
+                if (meta == null) continue;
 
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
-        Deque<HistoryEntry> deque = new ArrayDeque<>();
-        ConfigurationSection section = cfg.getConfigurationSection("history");
-        if (section == null) return deque;
+                List<String> currentLore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+                if (currentLore == null) currentLore = new ArrayList<>();
 
-        int maxDaysLimit = plugin.getConfigManager().getHistoryMaxDays();
-        long cutoff = Instant.now().minusSeconds((long) maxDaysLimit * 86400).toEpochMilli();
+                String formattedDate = dateFormatter.format(Instant.ofEpochMilli(entry.getTimestamp()));
+                String displayName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                        ? item.getItemMeta().getDisplayName()
+                        : item.getType().name();
 
-        for (String key : section.getKeys(false)) {
-            ConfigurationSection e = section.getConfigurationSection(key);
-            if (e == null) continue;
+                for (String line : loreTemplate) {
+                    currentLore.add(HexColors.translate(line
+                            .replace("{dropped-by}", entry.getPlayerName())
+                            .replace("{dropped-at}", formattedDate)));
+                }
 
-            long time = e.getLong("time");
-            if (time < cutoff) continue;
-
-            String base64 = e.getString("item");
-            ItemStack item = deserializeItem(base64);
-            if (item != null) {
-                deque.addLast(new HistoryEntry(e.getString("player"), time, item));
+                meta.setLore(currentLore);
+                item.setItemMeta(meta);
+                items.add(item);
             }
-        }
-        return deque;
-    }
 
-    private void saveHistory(String cacheName) {
-        Deque<HistoryEntry> deque = historyCache.get(cacheName);
-        if (deque == null) return;
-
-        List<HistoryEntry> snapshot;
-        synchronized (deque) {
-            if (deque.isEmpty()) return;
-            snapshot = new ArrayList<>(deque);
-        }
-
-        File file = new File(historyFolder, cacheName + ".yml");
-        FileConfiguration cfg = new YamlConfiguration();
-
-        int i = 0;
-        for (HistoryEntry entry : snapshot) {
-            String base = "history." + i + ".";
-            cfg.set(base + "player", entry.playerName);
-            cfg.set(base + "time", entry.time);
-            cfg.set(base + "item", serializeItem(entry.item));
-            i++;
-        }
-        try {
-            cfg.save(file);
-        } catch (IOException e) {
-            plugin.error("Не удалось сохранить файл истории лута для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
-        }
+            plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(items));
+        });
     }
 
     public void deleteHistory(String cacheName) {
-        File file = new File(historyFolder, cacheName + ".yml");
-        if (file.exists()) file.delete();
-
-        historyCache.remove(cacheName);
-        dirtyHistory.remove(cacheName);
-    }
-
-    public void saveAll() {
-        if (batchSaveTask != null) batchSaveTask.cancel();
-        for (String cacheName : new ArrayList<>(historyCache.keySet())) {
-            saveHistory(cacheName);
-        }
-        if (plugin.isEnabled()) startBatchSaver();
-    }
-
-    private String serializeItem(ItemStack item) {
-        return Base64.getEncoder().encodeToString(item.serializeAsBytes());
-    }
-
-    private ItemStack deserializeItem(String base64) {
-        try {
-            byte[] bytes = Base64.getDecoder().decode(base64);
-            return ItemStack.deserializeBytes(bytes);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void loadAllHistories() {
-        File[] files = historyFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) return;
-        for (File file : files) {
-            String cacheName = file.getName().replace(".yml", "");
-            historyCache.put(cacheName, loadHistory(cacheName));
-        }
-        plugin.log("Успешно &#ffff00инициализировано &fи &#ffff00загружено &fисторий лута тайников: &#ffff00" + historyCache.size());
-    }
-
-    public void reload() {
-        historyCache.clear();
-        loadAllHistories();
-    }
-
-    public static class HistoryEntry {
-        public final String playerName;
-        public final long time;
-        public final ItemStack item;
-        public final String formattedTime;
-
-        HistoryEntry(String playerName, long time, ItemStack item) {
-            this.playerName = playerName;
-            this.time = time;
-            this.item = item;
-            this.formattedTime = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
-                    .withZone(ZoneId.systemDefault())
-                    .format(Instant.ofEpochMilli(time));
+        if (plugin.getDatabaseManager() != null) {
+            plugin.getDatabaseManager().deleteCacheStatsAndHistory(cacheName);
         }
     }
 }

@@ -8,32 +8,38 @@ import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.animations.*;
 import org.gw.cachesmanager.animations.platform.*;
 import org.gw.cachesmanager.animations.view.*;
+import org.gw.cachesmanager.opening.CacheOpening;
 
 import java.util.Map;
 
 public class AnimationsManager implements Listener {
+    private final CachesManager plugin;
     private final AnimationRegistry registry;
     private final AnimationExecutor executor;
     private final AnimationListener listener;
 
     public AnimationsManager(CachesManager plugin, HologramManager hologramManager) {
-        PacketPlatform packetPlatform = AnimationEngineConfigurator.selectPacketPlatform();
-        AnimationView animationView = AnimationEngineConfigurator.selectAnimationView(plugin, packetPlatform);
+        this.plugin = plugin;
+
+        AnimationEngineConfigurator.PacketItemMetadataSender packetSender = AnimationEngineConfigurator.selectPacketPlatform();
+        AnimationView animationView = AnimationEngineConfigurator.selectAnimationView(plugin, packetSender);
 
         this.registry = new AnimationRegistry(plugin);
         this.executor = new AnimationExecutor(plugin, registry, animationView);
         this.listener = new AnimationListener(plugin, executor);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+
+        startOrphanedAnimationChecker();
     }
 
     public Map<String, Animation> getAnimations() {
         return registry.getAnimations();
     }
 
-    public void playAnimation(Player player, String animationName, Location location, ItemStack item, String cacheName) {
+    public void playAnimation(Player player, String animationName, Location location, ItemStack item, String cacheName, CacheOpening opening) {
         Animation animation = registry.getAnimations().get(animationName);
         if (animation != null) {
-            executor.startAnimation(cacheName, player, item, location, animation);
+            executor.startAnimation(cacheName, player, item, location, animation, opening);
         }
     }
 
@@ -53,8 +59,25 @@ public class AnimationsManager implements Listener {
         executor.clearAllAnimations();
     }
 
-    public void reloadAnimations() {
-        executor.clearAllAnimations();
+    public boolean hasActiveAnimation(String cacheName) {
+        return executor.hasActiveAnimationForCache(cacheName);
+    }
+
+    public void reloadAnimations(boolean forceClearActiveAnimations) {
+        if (forceClearActiveAnimations) {
+            executor.clearAllAnimations();
+        }
         registry.load();
+    }
+
+    public void startOrphanedAnimationChecker() {
+        long ticks = 12 * 20L;
+
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                executor.checkOrphanedAnimations();
+            }
+        }.runTaskTimer(plugin, ticks, ticks);
     }
 }

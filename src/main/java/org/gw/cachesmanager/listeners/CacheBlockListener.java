@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.managers.ConfigManager;
 import org.gw.cachesmanager.managers.ItemManager;
@@ -48,7 +49,7 @@ public class CacheBlockListener implements Listener {
         ItemStack offItem = player.getInventory().getItemInOffHand();
 
         Location location = event.getClickedBlock() != null ? event.getClickedBlock().getLocation() : null;
-        CacheManager.Cache cache = location != null ? cacheManager.getCacheByLocation(location) : null;
+        Cache cache = location != null ? cacheManager.getCacheByLocation(location) : null;
 
         if (cache != null) {
             if (event.getHand() != EquipmentSlot.HAND) {
@@ -60,7 +61,7 @@ public class CacheBlockListener implements Listener {
 
             FileConfiguration menuConfig = configManager.loadMenuConfig("global-menu.yml");
             if (menuConfig == null) {
-                plugin.error("Не удалось загрузить файл конфигурации &#FB8808global-menu.yml&f...");
+                plugin.log("Не удалось загрузить файл конфигурации &#FB8808global-menu.yml&f...");
                 return;
             }
 
@@ -86,7 +87,7 @@ public class CacheBlockListener implements Listener {
                     clickMatches = !isShift && isLeftClick;
                     break;
                 default:
-                    plugin.error("Некорректный тип клика &#FB8808click-type &fв global-menu.yml: &#FB8808" + clickTypeStr + "&f...");
+                    plugin.log("Некорректный тип клика &#FB8808click-type &fв global-menu.yml: &#FB8808" + clickTypeStr + "&f...");
                     clickMatches = isShift && isRightClick;
             }
 
@@ -98,8 +99,8 @@ public class CacheBlockListener implements Listener {
                     configManager.executeActions(player, "errors.no-permission");
                     return;
                 }
-                plugin.log("Игрок &#ffff00" + player.getName() + " &fоткрыл главное меню управления для тайника &#ffff00" + cache.name);
-                menuManager.openMenu(player, cache.name, "global-menu.yml");
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fоткрыл главное меню управления для тайника &#ffff00" + cache.getName());
+                menuManager.openMenu(player, cache.getName(), "global-menu.yml");
                 return;
             }
 
@@ -119,10 +120,10 @@ public class CacheBlockListener implements Listener {
                 ItemStack keyItem = null;
                 EquipmentSlot keyHand = null;
 
-                if (itemManager.isKey(mainItem, cache.name)) {
+                if (itemManager.isKey(mainItem, cache.getName())) {
                     keyItem = mainItem;
                     keyHand = EquipmentSlot.HAND;
-                } else if (itemManager.isKey(offItem, cache.name)) {
+                } else if (itemManager.isKey(offItem, cache.getName())) {
                     keyItem = offItem;
                     keyHand = EquipmentSlot.OFF_HAND;
                 }
@@ -133,12 +134,24 @@ public class CacheBlockListener implements Listener {
                 }
 
                 if (cache.isInUse()) {
-                    configManager.executeActions(player, "cache.in-use", ph);
-                    return;
+                    boolean actuallyRunning = plugin.getAnimationsManager() != null
+                            && plugin.getAnimationsManager().hasActiveAnimation(cache.getName());
+
+                    if (!actuallyRunning) {
+                        cache.setInUse(false);
+                        plugin.log("Автоматически сброшено застрявшее состояние isInUse у тайника &#ffff00" + cache.getName());
+
+                        if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+                            plugin.getHologramManager().createHologram(cache.getName(), cache.getLocation(), cache.getHologramText());
+                        }
+                    } else {
+                        configManager.executeActions(player, "cache.in-use", ph);
+                        return;
+                    }
                 }
 
-                if (cache.open(player)) {
-                    plugin.log("Игрок &#ffff00" + player.getName() + " &fуспешно использовал ключ для открытия тайника &#ffff00" + cache.name);
+                if (cacheManager.openCache(cache, player)) {
+                    plugin.log("Игрок &#ffff00" + player.getName() + " &fуспешно использовал ключ для открытия тайника &#ffff00" + cache.getName());
                     if (keyItem.getAmount() > 1) {
                         keyItem.setAmount(keyItem.getAmount() - 1);
                     } else {
@@ -174,7 +187,7 @@ public class CacheBlockListener implements Listener {
         Player player = event.getPlayer();
         String cacheName = plugin.getCacheModeListener().getSelectionMode(player);
         Location location = event.getBlock().getLocation();
-        CacheManager.Cache existingCache = cacheManager.getCacheByLocation(location);
+        Cache existingCache = cacheManager.getCacheByLocation(location);
 
         Map<String, String> ph = new HashMap<>();
 
@@ -182,7 +195,7 @@ public class CacheBlockListener implements Listener {
             if (cacheName != null) {
                 event.setCancelled(true);
                 ph.put("name-cache", existingCache.getDisplayName());
-                if (existingCache.name.equals(cacheName)) {
+                if (existingCache.getName().equals(cacheName)) {
                     configManager.executeActions(player, "interaction.select-block.same-cache", ph);
                 } else {
                     configManager.executeActions(player, "cache.already-exists", ph);
@@ -195,16 +208,16 @@ public class CacheBlockListener implements Listener {
                 event.setDropItems(false);
                 ph.put("name-cache", existingCache.getDisplayName());
                 configManager.executeActions(player, "cache.break-forbidden", ph);
-                plugin.log("Игрок &#ffff00" + player.getName() + " &fпопытался сломать неразрушимый тайник &#ffff00" + existingCache.name);
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fпопытался сломать неразрушимый тайник &#ffff00" + existingCache.getName());
                 return;
             } else {
                 event.setCancelled(false);
                 ph.put("name-cache", existingCache.getDisplayName());
                 configManager.executeActions(player, "cache.deleted", ph);
-                plugin.log("Тайник &#ffff00" + existingCache.name + " &fбыл физически разрушен игроком &#ffff00" + player.getName());
-                existingCache.setLocation(null);
-                existingCache.setBlockType(null);
-                configManager.saveCacheConfig(existingCache.name);
+                plugin.log("Тайник &#ffff00" + existingCache.getName() + " &fбыл физически разрушен игроком &#ffff00" + player.getName());
+                cacheManager.setCacheLocation(existingCache, null);
+                cacheManager.setCacheBlockType(existingCache, null);
+                configManager.saveCacheConfig(existingCache.getName());
                 return;
             }
         }
@@ -214,17 +227,18 @@ public class CacheBlockListener implements Listener {
             Block block = event.getBlock();
             Material blockType = block.getType();
 
-            CacheManager.Cache cache = cacheManager.getCache(cacheName);
+            Cache cache = cacheManager.getCache(cacheName);
             if (cache == null) {
                 ph.put("name-cache", cacheName);
                 configManager.executeActions(player, "cache.not-found", ph);
-                plugin.getCacheModeListener().cancelSelectionMode(player);
+                plugin.getCacheModeListener().cancelSession(player);
+                plugin.getCacheModeListener().discardLastMenu(player);
                 return;
             }
 
             plugin.getCacheModeListener().removeSelectionMode(player);
-            cache.setLocation(location);
-            cache.setBlockType(blockType);
+            cacheManager.setCacheLocation(cache, location);
+            cacheManager.setCacheBlockType(cache, blockType);
             plugin.log("Игрок &#ffff00" + player.getName() + " &fустановил физический блок тайника &#ffff00" + cacheName + " &fчерез разрушение блока");
             ph.put("name-cache", cacheName);
             ph.put("x", String.valueOf(location.getBlockX()));

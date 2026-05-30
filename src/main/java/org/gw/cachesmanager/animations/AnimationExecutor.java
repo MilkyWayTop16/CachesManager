@@ -13,7 +13,8 @@ import org.bukkit.util.Vector;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.animations.view.AnimationView;
 import org.gw.cachesmanager.animations.view.LegacyAnimationView;
-import org.gw.cachesmanager.managers.CacheManager;
+import org.gw.cachesmanager.caches.Cache;
+import org.gw.cachesmanager.opening.CacheOpening;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +24,6 @@ public class AnimationExecutor {
     private final AnimationRegistry registry;
     private final AnimationView animationView;
 
-    private final Map<String, BukkitTask> animationTasks = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingLoot = new ConcurrentHashMap<>();
     private final Map<String, ItemStack> activeAnimationLoot = new ConcurrentHashMap<>();
     private final Map<UUID, String> playerActiveCaches = new ConcurrentHashMap<>();
@@ -31,21 +31,52 @@ public class AnimationExecutor {
     private final Map<String, Vector[]> circleMathCache = new ConcurrentHashMap<>();
     private final Map<String, Particle.DustOptions> dustOptionsCache = new ConcurrentHashMap<>();
 
+    private final Map<String, CacheOpening> activeOpenings = new ConcurrentHashMap<>();
+
+    private BukkitTask centralTask;
+    private final java.util.Set<String> activeAnimations = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> orphanedAnimations = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Map<String, BukkitTask> phaseTasks = new ConcurrentHashMap<>();
+
     public AnimationExecutor(CachesManager plugin, AnimationRegistry registry, AnimationView animationView) {
         this.plugin = plugin;
         this.registry = registry;
         this.animationView = animationView;
+        startCentralTask();
     }
 
-    private void trackTask(String cacheName, BukkitTask task) {
-        BukkitTask oldTask = animationTasks.put(cacheName, task);
-        if (oldTask != null) {
-            oldTask.cancel();
-        }
+    private void startCentralTask() {
+        if (centralTask != null) return;
+        centralTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (String cacheName : new java.util.ArrayList<>(activeAnimations)) {
+                    Cache cache = plugin.getCacheManager().getCache(cacheName);
+                    if (cache == null || !cache.isInUse()) {
+                        activeAnimations.remove(cacheName);
+                        continue;
+                    }
+
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    public void startAnimation(String cacheName, Player player, ItemStack item, Location baseLocation, Animation animation) {
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+    private void registerActiveAnimation(String cacheName) {
+        activeAnimations.add(cacheName);
+    }
+
+    private void unregisterActiveAnimation(String cacheName) {
+        activeAnimations.remove(cacheName);
+    }
+
+    private void trackPhaseTask(String cacheName, BukkitTask task) {
+        BukkitTask old = phaseTasks.put(cacheName, task);
+        if (old != null) old.cancel();
+    }
+
+    public void startAnimation(String cacheName, Player player, ItemStack item, Location baseLocation, Animation animation, CacheOpening opening) {
+        var cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) {
             plugin.error("Не удалось запустить анимацию, так как тайник &#FB8808" + cacheName + " &fне найден в базе...");
             return;
@@ -53,26 +84,31 @@ public class AnimationExecutor {
 
         activeAnimationLoot.put(cacheName, item);
         playerActiveCaches.put(player.getUniqueId(), cacheName);
+
+        if (opening != null) {
+            activeOpenings.put(cacheName, opening);
+        }
+
         plugin.log("Инициализация запуска анимации &#ffff00" + animation.getKey() + " &fдля тайника &#ffff00" + cacheName);
 
         if ("firework".equals(animation.getKey())) {
-            startFireworkDelayPhase(cacheName, player, item, baseLocation, animation, cache);
+            startFireworkDelayPhase(cacheName, player, item, baseLocation, animation, cache, opening);
         } else {
             Location delayLoc = baseLocation.clone().add(0.5, 0.5, 0.5);
             Location itemLoc = baseLocation.clone().add(0.5, 0.5, 0.5);
-            startDelayPhase(cacheName, player, item, delayLoc, itemLoc, baseLocation, animation, cache);
+            startDelayPhase(cacheName, player, item, delayLoc, itemLoc, baseLocation, animation, cache, opening);
         }
     }
 
     private void startDelayPhase(String cacheName, Player player, ItemStack item, Location delayLoc,
-                                 Location itemLoc, Location baseLocation, Animation animation, CacheManager.Cache cache) {
+                                 Location itemLoc, Location baseLocation, Animation animation, Cache cache, CacheOpening opening) {
         BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
                 if (ticks >= animation.getDelayDuration()) {
                     cancel();
-                    startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache);
+                    startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache, opening);
                     return;
                 }
                 if (ticks % 8 == 0) {
@@ -85,11 +121,12 @@ public class AnimationExecutor {
                 ticks++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        trackTask(cacheName, task);
+        trackPhaseTask(cacheName, task);
+        registerActiveAnimation(cacheName);
     }
 
     private void startItemPhase(String cacheName, Player player, ItemStack item, Location baseLocation,
-                                Location itemLoc, Animation animation, CacheManager.Cache cache) {
+                                Location itemLoc, Animation animation, Cache cache, CacheOpening opening) {
         animationView.spawn(cacheName, itemLoc, item, animation);
 
         playSounds(itemLoc, animation.getItemSounds());
@@ -103,7 +140,7 @@ public class AnimationExecutor {
             public void run() {
                 if (ticks >= animation.getItemDuration()) {
                     cancel();
-                    finishAnimation(cacheName, player, item, baseLocation, reusableLoc, animation, cache);
+                    finishAnimation(cacheName, player, item, baseLocation, reusableLoc, animation, cache, opening);
                     return;
                 }
                 if (ticks % animation.getAmbientInterval() == 0) {
@@ -118,47 +155,59 @@ public class AnimationExecutor {
                 ticks++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        trackTask(cacheName, task);
+        trackPhaseTask(cacheName, task);
+        registerActiveAnimation(cacheName);
     }
 
     private void finishAnimation(String cacheName, Player player, ItemStack item, Location baseLocation,
-                                 Location itemLoc, Animation animation, CacheManager.Cache cache) {
+                                 Location itemLoc, Animation animation, Cache cache, CacheOpening opening) {
         activeAnimationLoot.remove(cacheName);
         if (player != null) playerActiveCaches.remove(player.getUniqueId());
-        animationTasks.remove(cacheName);
+        phaseTasks.remove(cacheName);
+        unregisterActiveAnimation(cacheName);
+        CacheOpening tracked = activeOpenings.remove(cacheName);
 
         animationView.remove(cacheName);
 
         playSounds(itemLoc, animation.getFinalSounds());
         spawnParticles(itemLoc, animation.getFinalParticles(), null);
 
-        Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        CacheOpening effectiveOpening = opening != null ? opening : tracked;
 
-        if (player != null && player.isOnline()) {
-            if (player.getInventory().firstEmpty() == -1) {
-                player.getWorld().dropItemNaturally(player.getLocation(), item);
-                plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
-                plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю");
+        if (effectiveOpening != null) {
+            effectiveOpening.finishVisual();
+        } else {
+            Map<String, String> ph = new HashMap<>();
+            ph.put("name-cache", cache.getDisplayName());
+
+            if (player != null && player.isOnline()) {
+                if (player.getInventory().firstEmpty() == -1) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), item);
+                    plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
+                    plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю");
+                } else {
+                    player.getInventory().addItem(item);
+                    plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан в инвентарь игрока &#ffff00" + player.getName());
+                }
+            } else if (player != null) {
+                pendingLoot.put(player.getUniqueId(), item);
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания");
             } else {
-                player.getInventory().addItem(item);
-                plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан в инвентарь игрока &#ffff00" + player.getName());
+                plugin.log("Анимация тайника &#ffff00" + cacheName + " &fзавершена, но владелец не найден. Предмет потерян.");
             }
-        } else if (player != null) {
-            pendingLoot.put(player.getUniqueId(), item);
-            plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания");
-        } else if (baseLocation != null && baseLocation.getWorld() != null) {
-            baseLocation.getWorld().dropItemNaturally(baseLocation, item);
-        }
 
-        cache.setInUse(false);
-        if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-            plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+            Cache liveCache = plugin.getCacheManager().getCache(cacheName);
+            if (liveCache != null) {
+                liveCache.setInUse(false);
+                if (liveCache.isHologramEnabled() && liveCache.getLocation() != null && plugin.getHologramManager() != null) {
+                    plugin.getHologramManager().createHologram(cacheName, liveCache.getLocation(), liveCache.getHologramText());
+                }
+            }
         }
     }
 
     private void startFireworkDelayPhase(String cacheName, Player player, ItemStack item, Location baseLocation,
-                                         Animation animation, CacheManager.Cache cache) {
+                                         Animation animation, Cache cache, CacheOpening opening) {
         Location delayLoc = baseLocation.clone().add(0.5, 0.5, 0.5);
         BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
@@ -166,7 +215,7 @@ public class AnimationExecutor {
             public void run() {
                 if (ticks >= animation.getDelayDuration()) {
                     cancel();
-                    startFireworkFlight(cacheName, player, item, baseLocation, animation, cache);
+                    startFireworkFlight(cacheName, player, item, baseLocation, animation, cache, opening);
                     return;
                 }
                 if (ticks % 6 == 0) {
@@ -179,11 +228,12 @@ public class AnimationExecutor {
                 ticks++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        trackTask(cacheName, task);
+        trackPhaseTask(cacheName, task);
+        registerActiveAnimation(cacheName);
     }
 
     private void startFireworkFlight(String cacheName, Player player, ItemStack item, Location baseLocation,
-                                     Animation animation, CacheManager.Cache cache) {
+                                     Animation animation, Cache cache, CacheOpening opening) {
         Location launchLoc = baseLocation.clone().add(0.5, 1.1, 0.5);
         Firework fw = launchLoc.getWorld().spawn(launchLoc, Firework.class);
         FireworkMeta meta = fw.getFireworkMeta();
@@ -213,53 +263,147 @@ public class AnimationExecutor {
                 ticks++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        trackTask(cacheName, flightTask);
+        trackPhaseTask(cacheName, flightTask);
+        registerActiveAnimation(cacheName);
 
         BukkitTask explosionTask = new BukkitRunnable() {
             @Override
             public void run() {
                 if (!fw.isDead()) fw.detonate();
-                startPostExplosionDelay(cacheName, player, item, baseLocation, animation, cache);
+                startPostExplosionDelay(cacheName, player, item, baseLocation, animation, cache, opening);
             }
         }.runTaskLater(plugin, animation.getFireworkFlightDuration() + 1);
-        trackTask(cacheName, explosionTask);
+        trackPhaseTask(cacheName, explosionTask);
+        registerActiveAnimation(cacheName);
     }
 
     private void startPostExplosionDelay(String cacheName, Player player, ItemStack item, Location baseLocation,
-                                         Animation animation, CacheManager.Cache cache) {
+                                         Animation animation, Cache cache, CacheOpening opening) {
         BukkitTask task = new BukkitRunnable() {
             @Override
             public void run() {
                 Location itemLoc = baseLocation.clone().add(0.5, 0.5, 0.5);
-                startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache);
+                startItemPhase(cacheName, player, item, baseLocation, itemLoc, animation, cache, opening);
             }
         }.runTaskLater(plugin, animation.getPostExplosionDelay());
-        trackTask(cacheName, task);
+        trackPhaseTask(cacheName, task);
+        registerActiveAnimation(cacheName);
     }
 
     public void forceFinishAnimationForPlayer(Player player) {
         String cacheName = playerActiveCaches.remove(player.getUniqueId());
         if (cacheName != null) {
-            BukkitTask task = animationTasks.remove(cacheName);
+            orphanedAnimations.remove(cacheName);
+            BukkitTask task = phaseTasks.remove(cacheName);
             if (task != null) task.cancel();
+            unregisterActiveAnimation(cacheName);
 
-            CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null) {
-                cache.setInUse(false);
-                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+            CacheOpening opening = activeOpenings.remove(cacheName);
+            if (opening != null) {
+                opening.finishVisual();
+            } else {
+                var cache = plugin.getCacheManager().getCache(cacheName);
+                if (cache != null) {
+                    cache.setInUse(false);
+                }
+
+                ItemStack item = activeAnimationLoot.remove(cacheName);
+                if (item != null && player != null) {
+                    if (player.isOnline()) {
+                        if (player.getInventory().firstEmpty() != -1) {
+                            player.getInventory().addItem(item.clone());
+                        } else {
+                            player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
+                        }
+                    } else {
+                        pendingLoot.put(player.getUniqueId(), item);
+                    }
+                }
+
+                if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
                     plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
                 }
             }
 
+            animationView.remove(cacheName);
+            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпринудительно остановлена для игрока &#ffff00" + player.getName());
+        }
+    }
+
+    public void handlePlayerLeftAnimationEvent(Player player) {
+        String cacheName = playerActiveCaches.remove(player.getUniqueId());
+        if (cacheName == null) return;
+
+        if (!plugin.getConfigManager().getMainConfig().isContinueAnimationIfPlayersNearby()) {
+            forceFinishAnimationForPlayerInternal(cacheName, player);
+            return;
+        }
+
+        org.gw.cachesmanager.caches.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        if (cache == null || cache.getLocation() == null) {
+            forceFinishAnimationForPlayerInternal(cacheName, player);
+            return;
+        }
+
+        boolean hasNearbyPlayers = hasPlayersNearLocation(cache.getLocation());
+
+        if (hasNearbyPlayers) {
+            makeAnimationOrphaned(cacheName, player.getUniqueId());
+            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпродолжена для зрителей");
+        } else {
+            forceFinishAnimationForPlayerInternal(cacheName, player);
+        }
+    }
+
+    private boolean hasPlayersNearLocation(org.bukkit.Location location) {
+        if (location == null) return false;
+
+        int radius = plugin.getConfigManager().getMainConfig().getOrphanedAnimationRadius();
+        double radiusSquared = radius * radius;
+
+        for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (p.getWorld().equals(location.getWorld()) &&
+                p.getLocation().distanceSquared(location) <= radiusSquared) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void forceFinishAnimationForPlayerInternal(String cacheName, Player player) {
+        BukkitTask task = phaseTasks.remove(cacheName);
+        if (task != null) task.cancel();
+        unregisterActiveAnimation(cacheName);
+
+        CacheOpening opening = activeOpenings.remove(cacheName);
+        if (opening != null) {
+            opening.finishVisual();
+        } else {
+            var cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache != null) {
+                cache.setInUse(false);
+            }
+
             ItemStack item = activeAnimationLoot.remove(cacheName);
-            if (item != null) {
-                if (cache != null && cache.getLocation() != null) {
-                    cache.getLocation().getWorld().dropItemNaturally(cache.getLocation().clone().add(0.5, 0.5, 0.5), item.clone());
+            if (item != null && player != null) {
+                if (player.isOnline()) {
+                    if (player.getInventory().firstEmpty() != -1) {
+                        player.getInventory().addItem(item.clone());
+                    } else {
+                        player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
+                    }
                 } else {
-                    player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
+                    pendingLoot.put(player.getUniqueId(), item);
                 }
             }
-            animationView.remove(cacheName);
+
+            if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+            }
+        }
+
+        animationView.remove(cacheName);
+        if (player != null) {
             plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпринудительно остановлена для игрока &#ffff00" + player.getName());
         }
     }
@@ -279,8 +423,79 @@ public class AnimationExecutor {
         animationView.remove(cacheName);
     }
 
+    private void forceRemoveAnimation(String cacheName) {
+        BukkitTask task = phaseTasks.remove(cacheName);
+        if (task != null) task.cancel();
+        unregisterActiveAnimation(cacheName);
+
+        CacheOpening opening = activeOpenings.remove(cacheName);
+        if (opening != null) {
+            opening.finishVisual();
+        } else {
+            animationView.remove(cacheName);
+
+            Cache cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache != null) {
+                cache.setInUse(false);
+
+                ItemStack item = activeAnimationLoot.remove(cacheName);
+                if (item != null) {
+                    Player owner = null;
+                    for (Map.Entry<UUID, String> entry : playerActiveCaches.entrySet()) {
+                        if (entry.getValue().equals(cacheName)) {
+                            owner = plugin.getServer().getPlayer(entry.getKey());
+                            break;
+                        }
+                    }
+
+                    if (owner != null && owner.isOnline()) {
+                        if (owner.getInventory().firstEmpty() != -1) {
+                            owner.getInventory().addItem(item.clone());
+                        } else {
+                            owner.getWorld().dropItemNaturally(owner.getLocation(), item.clone());
+                        }
+                    } else if (owner != null) {
+                        pendingLoot.put(owner.getUniqueId(), item);
+                    } else {
+                        plugin.error("Предмет из тайника &#ffff00" + cacheName + " &fпотерян, так как владелец не определён...");
+                    }
+                }
+
+                playerActiveCaches.values().removeIf(name -> name.equals(cacheName));
+
+                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+                    plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+                }
+            }
+        }
+    }
+
     public void handleChunkUnload(World world, int chunkX, int chunkZ) {
-        if (!(animationView instanceof LegacyAnimationView legacyView)) return;
+
+        if (animationView instanceof LegacyAnimationView legacyView) {
+            handleLegacyChunkUnload(legacyView, world, chunkX, chunkZ);
+        }
+
+
+        for (String cacheName : new ArrayList<>(activeAnimationLoot.keySet())) {
+            Cache cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache != null && cache.getLocation() != null) {
+                Location loc = cache.getLocation();
+                if (loc.getWorld().equals(world) &&
+                    (loc.getBlockX() >> 4) == chunkX &&
+                    (loc.getBlockZ() >> 4) == chunkZ) {
+                    CacheOpening opening = activeOpenings.remove(cacheName);
+                    if (opening != null) {
+                        opening.finishVisual();
+                    } else {
+                        forceRemoveAnimation(cacheName);
+                    }
+                }
+            }
+        }
+    }
+
+    private void handleLegacyChunkUnload(LegacyAnimationView legacyView, World world, int chunkX, int chunkZ) {
 
         for (Map.Entry<String, Item> entry : new HashMap<>(legacyView.getPhantomItems()).entrySet()) {
             String cacheName = entry.getKey();
@@ -294,7 +509,7 @@ public class AnimationExecutor {
                 if (loc == null) continue;
 
                 if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
-                    CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+                    Cache cache = plugin.getCacheManager().getCache(cacheName);
                     if (cache == null || !cache.isInUse()) {
                         legacyView.remove(cacheName);
                     }
@@ -316,7 +531,7 @@ public class AnimationExecutor {
                 if (loc == null) continue;
 
                 if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ) {
-                    CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+                    Cache cache = plugin.getCacheManager().getCache(cacheName);
                     if (cache == null || !cache.isInUse()) {
                         legacyView.remove(cacheName);
                     }
@@ -328,56 +543,167 @@ public class AnimationExecutor {
     }
 
     public void cleanupGhostEntities(Player player) {
-        if (animationView instanceof LegacyAnimationView) {
-            Location center = player.getLocation();
-            for (org.bukkit.entity.Entity entity : center.getWorld().getNearbyEntities(center, 50, 50, 50)) {
-                if (entity.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, "ghost"), org.bukkit.persistence.PersistentDataType.STRING)) {
-                    entity.remove();
+        Location center = player.getLocation();
+        World world = center.getWorld();
+
+
+        for (org.bukkit.entity.Entity entity : world.getNearbyEntities(center, 48, 48, 48)) {
+            if (entity.getPersistentDataContainer().has(org.gw.cachesmanager.utils.CacheKeys.GHOST.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                entity.remove();
+            }
+        }
+
+
+        if (animationView instanceof LegacyAnimationView legacyView) {
+            legacyView.getItemHolograms().values().removeIf(stand -> {
+                if (stand != null && !stand.isDead() && stand.getWorld().equals(world) && stand.getLocation().distanceSquared(center) < 2304) {
+                    stand.remove();
+                    return true;
                 }
+                return false;
+            });
+        }
+    }
+
+    public boolean hasActiveAnimationForCache(String cacheName) {
+        if (cacheName == null) return false;
+        return activeOpenings.containsKey(cacheName)
+                || activeAnimationLoot.containsKey(cacheName)
+                || activeAnimations.contains(cacheName);
+    }
+
+    public boolean isPlayerInAnimation(org.bukkit.entity.Player player) {
+        return player != null && playerActiveCaches.containsKey(player.getUniqueId());
+    }
+
+    public void makeAnimationOrphaned(String cacheName, java.util.UUID ownerId) {
+        if (cacheName == null) return;
+
+        orphanedAnimations.add(cacheName);
+        if (ownerId != null) {
+            playerActiveCaches.remove(ownerId);
+        }
+    }
+
+    public void tryReattachOrphanedAnimation(org.bukkit.entity.Player player) {
+        if (player == null) return;
+
+        for (String cacheName : new java.util.ArrayList<>(orphanedAnimations)) {
+            org.gw.cachesmanager.caches.Cache cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache == null) continue;
+
+            if (pendingLoot.containsKey(player.getUniqueId())) {
+                orphanedAnimations.remove(cacheName);
+                playerActiveCaches.put(player.getUniqueId(), cacheName);
+                return;
             }
         }
     }
 
     public void clearAllAnimations() {
-        for (BukkitTask task : animationTasks.values()) {
+        orphanedAnimations.clear();
+
+        if (centralTask != null) {
+            centralTask.cancel();
+            centralTask = null;
+        }
+        for (BukkitTask task : phaseTasks.values()) {
             if (task != null) task.cancel();
         }
-        animationTasks.clear();
+        phaseTasks.clear();
+        activeAnimations.clear();
 
-        for (Map.Entry<String, ItemStack> entry : activeAnimationLoot.entrySet()) {
+        for (String cacheName : new ArrayList<>(activeOpenings.keySet())) {
+            CacheOpening opening = activeOpenings.remove(cacheName);
+            if (opening != null) {
+                opening.finishVisual();
+            }
+            activeAnimationLoot.remove(cacheName);
+            playerActiveCaches.values().removeIf(name -> name.equals(cacheName));
+        }
+        activeOpenings.clear();
+
+        for (Map.Entry<String, ItemStack> entry : new ArrayList<>(activeAnimationLoot.entrySet())) {
             String cacheName = entry.getKey();
             ItemStack item = entry.getValue();
-            CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null) {
-                cache.setInUse(false);
-                if (cache.getLocation() != null && cache.getLocation().getWorld() != null) {
-                    cache.getLocation().getWorld().dropItemNaturally(cache.getLocation().clone().add(0.5, 0.5, 0.5), item.clone());
-                }
-                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                    plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+
+            Player owner = null;
+            for (Map.Entry<UUID, String> playerEntry : playerActiveCaches.entrySet()) {
+                if (playerEntry.getValue().equals(cacheName)) {
+                    owner = plugin.getServer().getPlayer(playerEntry.getKey());
+                    break;
                 }
             }
-            animationView.remove(cacheName);
+
+            var cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache != null) {
+                cache.setInUse(false);
+            }
+
+            if (item != null) {
+                boolean given = false;
+
+                if (owner != null && owner.isOnline()) {
+                    if (owner.getInventory().firstEmpty() != -1) {
+                        owner.getInventory().addItem(item.clone());
+                        plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fвыдан игроку &#ffff00" + owner.getName() + " &fпри принудительной очистке анимаций");
+                        given = true;
+                    } else {
+                        owner.getWorld().dropItemNaturally(owner.getLocation(), item.clone());
+                        plugin.log("Инвентарь игрока &#ffff00" + owner.getName() + " &fбыл полон, предмет из тайника &#ffff00" + cacheName + " &fвыброшен на землю при очистке анимаций...");
+                        given = true;
+                    }
+                }
+
+                if (!given) {
+                    if (owner != null) {
+                        pendingLoot.put(owner.getUniqueId(), item);
+                    } else {
+                        plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fпотерян при очистке анимаций...");
+                    }
+                }
+            }
+
+            if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+                plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+            }
         }
 
         activeAnimationLoot.clear();
         playerActiveCaches.clear();
         circleMathCache.clear();
         dustOptionsCache.clear();
-        plugin.log("Все активные анимационные процессы и таски плагина &#ffff00успешно очищены");
+
+        if (plugin.getCacheManager() != null) {
+            for (Cache c : plugin.getCacheManager().getCaches().values()) {
+                if (c.isInUse()) {
+                    c.setInUse(false);
+                }
+            }
+        }
+
+        plugin.log("Все активные анимационные процессы и таски плагина &#ffff00успешно &fочищены!");
+    }
+
+    public void checkOrphanedAnimations() {
     }
 
     private void playSounds(Location loc, List<Animation.SoundEntry> sounds) {
         if (sounds == null || loc == null || loc.getWorld() == null) return;
+
         for (Animation.SoundEntry entry : sounds) {
-            loc.getWorld().getNearbyPlayers(loc, 10).forEach(p -> p.playSound(loc, entry.sound(), entry.volume(), entry.pitch()));
+            loc.getWorld().getNearbyPlayers(loc, 12).forEach(p -> p.playSound(loc, entry.sound(), entry.volume(), entry.pitch()));
         }
     }
 
     private void spawnParticles(Location loc, List<Animation.ParticleEntry> particles, ItemStack itemData) {
         if (particles == null || loc == null || loc.getWorld() == null) return;
+        World world = loc.getWorld();
+
+        if (world.getNearbyPlayers(loc, 32).isEmpty()) return;
+
         for (Animation.ParticleEntry p : particles) {
-            spawnParticleSafely(loc.getWorld(), p.type(), loc, p.amount(), p.offsetX(), p.offsetY(), p.offsetZ(), p.speed(), itemData, null, 0);
+            spawnParticleSafely(world, p.type(), loc, p.amount(), p.offsetX(), p.offsetY(), p.offsetZ(), p.speed(), itemData, null, 0);
         }
     }
 
@@ -396,6 +722,9 @@ public class AnimationExecutor {
         if (baseLocation.getWorld() == null) return;
         World w = baseLocation.getWorld();
         Location center = baseLocation.clone().add(0.5, 0.1, 0.5);
+
+
+        if (w.getNearbyPlayers(center, 28).isEmpty()) return;
 
         if ("circle".equals(animation.getAmbientShape())) {
             Vector[] offsets = circleMathCache.computeIfAbsent(animation.getKey(), k -> {

@@ -5,23 +5,33 @@ import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 
-public class CreateCacheCommand {
-    private final CachesManager plugin;
+public class CreateCacheCommand extends AbstractSubCommand {
 
     public CreateCacheCommand(CachesManager plugin) {
-        this.plugin = plugin;
+        super(plugin);
     }
 
-    public boolean execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
-            plugin.getConfigManager().executeActions(null, "errors.console-not-allowed");
-            return true;
-        }
+    @Override
+    public String getName() {
+        return "createcache";
+    }
+
+    @Override
+    public String getPermission() {
+        return "cachesmanager.createcache";
+    }
+
+    @Override
+    public boolean isPlayerOnly() {
+        return true;
+    }
+
+    @Override
+    protected boolean handle(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            plugin.getConfigManager().executeActions((Player) sender, "help.createcache");
+            sendHelp(sender);
             return true;
         }
 
@@ -30,11 +40,11 @@ public class CreateCacheCommand {
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
 
         if (cacheName.isEmpty()) {
-            plugin.getConfigManager().executeActions(player, "help.createcache");
+            sendHelp(sender);
             return true;
         }
 
-        Map<String, String> ph = new HashMap<>();
+        Map<String, String> ph = createPlaceholders();
         ph.put("name-cache", cacheName);
 
         if (plugin.getCacheManager().createCache(cacheName)) {

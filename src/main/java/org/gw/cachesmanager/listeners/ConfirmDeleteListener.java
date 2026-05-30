@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.gw.cachesmanager.CachesManager;
 
 import java.util.HashMap;
@@ -75,5 +76,10 @@ public class ConfirmDeleteListener implements Listener {
 
         removePending(p);
         e.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        pendingDelete.remove(event.getPlayer().getUniqueId());
     }
 }

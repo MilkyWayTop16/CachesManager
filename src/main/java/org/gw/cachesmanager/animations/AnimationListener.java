@@ -26,22 +26,30 @@ public class AnimationListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        executor.forceFinishAnimationForPlayer(event.getPlayer());
+        handlePlayerLeftAnimation(event.getPlayer());
     }
 
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        executor.forceFinishAnimationForPlayer(event.getPlayer());
+        handlePlayerLeftAnimation(event.getPlayer());
     }
 
     @EventHandler
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
-        executor.forceFinishAnimationForPlayer(event.getPlayer());
+        handlePlayerLeftAnimation(event.getPlayer());
+    }
+
+    private void handlePlayerLeftAnimation(org.bukkit.entity.Player player) {
+        if (executor.isPlayerInAnimation(player)) {
+            executor.handlePlayerLeftAnimationEvent(player);
+        }
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         executor.givePendingLootToPlayer(event.getPlayer());
+        executor.tryReattachOrphanedAnimation(event.getPlayer());
+
         new BukkitRunnable() {
             @Override
             public void run() {

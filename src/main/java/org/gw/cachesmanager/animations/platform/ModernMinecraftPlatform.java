@@ -1,13 +1,13 @@
 package org.gw.cachesmanager.animations.platform;
 
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.utils.CacheKeys;
 import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.*;
@@ -40,39 +40,46 @@ public class ModernMinecraftPlatform implements HologramPlatform {
         deleteHologram(id);
 
         List<Entity> entities = new ArrayList<>();
-        NamespacedKey key = new NamespacedKey(plugin, "hologram_id");
 
-        if (useTextDisplay) {
-            Location calibratedLoc = location.clone().subtract(0, 0.25, 0);
-            TextDisplay display = location.getWorld().spawn(calibratedLoc, TextDisplay.class, textDisplay -> {
-                textDisplay.setText(HexColors.translate(text));
-                textDisplay.setBillboard(Display.Billboard.CENTER);
-                textDisplay.setPersistent(false);
-                textDisplay.getPersistentDataContainer().set(key, PersistentDataType.STRING, id);
-            });
-            entities.add(display);
-        } else {
-            String[] lines = text.split("\n");
-            Location spawnLoc = location.clone().subtract(0, 1.25, 0);
-
-            for (int i = lines.length - 1; i >= 0; i--) {
-                final String currentLine = lines[i];
-                ArmorStand stand = location.getWorld().spawn(spawnLoc, ArmorStand.class, armorStand -> {
-                    armorStand.setCustomName(HexColors.translate(currentLine));
-                    armorStand.setCustomNameVisible(true);
-                    armorStand.setVisible(false);
-                    armorStand.setGravity(false);
-                    armorStand.setMarker(true);
-                    armorStand.setPersistent(false);
-                    armorStand.getPersistentDataContainer().set(key, PersistentDataType.STRING, id);
+        try {
+            if (useTextDisplay) {
+                TextDisplay display = location.getWorld().spawn(location, TextDisplay.class, textDisplay -> {
+                    textDisplay.setText(HexColors.translate(text));
+                    textDisplay.setBillboard(Display.Billboard.CENTER);
+                    textDisplay.setPersistent(false);
+                    textDisplay.getPersistentDataContainer().set(CacheKeys.HOLOGRAM_ID.getNamespacedKey(), PersistentDataType.STRING, id);
                 });
-                entities.add(stand);
-                spawnLoc.add(0, 0.28, 0);
-            }
-            Collections.reverse(entities);
-        }
+                entities.add(display);
+            } else {
+                String[] lines = text.split("\n");
+                Location spawnLoc = location.clone();
 
-        activeHolograms.put(id, entities);
+                for (int i = lines.length - 1; i >= 0; i--) {
+                    final String currentLine = lines[i];
+                    ArmorStand stand = location.getWorld().spawn(spawnLoc, ArmorStand.class, armorStand -> {
+                        armorStand.setCustomName(HexColors.translate(currentLine));
+                        armorStand.setCustomNameVisible(true);
+                        armorStand.setVisible(false);
+                        armorStand.setGravity(false);
+                        armorStand.setMarker(true);
+                        armorStand.setPersistent(false);
+                        armorStand.getPersistentDataContainer().set(CacheKeys.HOLOGRAM_ID.getNamespacedKey(), PersistentDataType.STRING, id);
+                    });
+                    entities.add(stand);
+                    spawnLoc.add(0, 0.28, 0);
+                }
+                Collections.reverse(entities);
+            }
+
+            activeHolograms.put(id, entities);
+        } catch (Throwable t) {
+            if (plugin != null) {
+                plugin.error("Ошибка создания встроенной голограммы (айди: " + id + ")");
+            }
+            for (Entity e : entities) {
+                try { if (e != null && !e.isDead()) e.remove(); } catch (Throwable ignored) {}
+            }
+        }
     }
 
     @Override
@@ -80,26 +87,32 @@ public class ModernMinecraftPlatform implements HologramPlatform {
         List<Entity> entities = activeHolograms.get(id);
         if (entities == null || entities.isEmpty()) return;
 
-        if (useTextDisplay) {
-            Entity entity = entities.get(0);
-            if (entity instanceof TextDisplay && !entity.isDead()) {
-                ((TextDisplay) entity).setText(HexColors.translate(text));
-            }
-        } else {
-            String[] lines = text.split("\n");
-            if (entities.size() == lines.length) {
-                for (int i = 0; i < lines.length; i++) {
-                    Entity entity = entities.get(i);
-                    if (entity instanceof ArmorStand && !entity.isDead()) {
-                        entity.setCustomName(HexColors.translate(lines[i]));
-                    }
+        try {
+            if (useTextDisplay) {
+                Entity entity = entities.get(0);
+                if (entity instanceof TextDisplay && !entity.isDead()) {
+                    ((TextDisplay) entity).setText(HexColors.translate(text));
                 }
             } else {
-                Location loc = entities.get(0).getLocation();
-                if (loc != null) {
-                    deleteHologram(id);
-                    createHologram(id, loc, text);
+                String[] lines = text.split("\n");
+                if (entities.size() == lines.length) {
+                    for (int i = 0; i < lines.length; i++) {
+                        Entity entity = entities.get(i);
+                        if (entity instanceof ArmorStand && !entity.isDead()) {
+                            entity.setCustomName(HexColors.translate(lines[i]));
+                        }
+                    }
+                } else {
+                    Location loc = entities.get(0).getLocation();
+                    if (loc != null) {
+                        deleteHologram(id);
+                        createHologram(id, loc, text);
+                    }
                 }
+            }
+        } catch (Throwable t) {
+            if (plugin != null) {
+                plugin.error("Ошибка обновления встроенной голограммы (айди: " + id + ")");
             }
         }
     }
@@ -109,9 +122,11 @@ public class ModernMinecraftPlatform implements HologramPlatform {
         List<Entity> entities = activeHolograms.remove(id);
         if (entities != null) {
             for (Entity entity : entities) {
-                if (entity != null && !entity.isDead()) {
-                    entity.remove();
-                }
+                try {
+                    if (entity != null && !entity.isDead()) {
+                        entity.remove();
+                    }
+                } catch (Throwable ignored) {}
             }
         }
     }

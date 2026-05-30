@@ -10,6 +10,10 @@
 #                             Мне будет очень приятно :)
 #
 
+# Версия конфигурации плагина
+# (Ни в коем случае не трогать данный параметр!)
+config-version: 1.3
+
 # Настройки всех параметров
 settings:
 
@@ -22,7 +26,7 @@ settings:
   # Настройка логирования
   logs-in-console:
     # Включить ли вывод всех логов плагина в консоль? (true/false)
-    # Рекомендуется включать только при отладке
+    # (Рекомендуется включать только при отладке)
     enable: false
 
   # Система проверки обновлений плагина
@@ -47,10 +51,10 @@ settings:
 
   # Настройки истории лута
   history:
-    # Максимальное количество записей в истории одного тайника
-    # (При превышении старые записи автоматически удаляются)
+    # Максимальное количество записей в истории одного тайника.
+    # При превышении этого значения самые старые записи автоматически удаляются
     max-entries: 225
-    # Максимальный возраст записи в днях
+    # Максимальный возраст записи (в днях)
     # (Записи старше этого значения автоматически удаляются при загрузке)
     max-days: 90
 
@@ -60,23 +64,62 @@ settings:
     # Включено ли удаление пробелов? (true/false)
     enabled: true
 
+  # Настройки поведения анимаций открытия тайников
+  animations:
+    # Продолжать ли анимацию открытия тайника, если игрок, который её запустил,
+    # вышел с сервера, телепортировался, сменил мир или оказался слишком далеко,
+    # но рядом с тайником всё ещё находятся другие игроки?
+    continue-if-players-nearby: true
+    # Радиус (в блоках), если в котором будет стоять игрок, то анимация будет продолжаться
+    orphaned-radius: 64
+
+  # Выбор и настройка базы данных для хранения статистики и истории лута
+  # Доступные типы баз данных:
+  #   sqlite — Локальный файл базы данных storage.db в папке плагина (Не требует настроек, идеально для обычных серверов без нескольких одинаковых режимах)
+  #   mysql — Удалённая база данных (Необходима для синхронизации топов и истории между несколькими серверами одной сети)
+  database:
+    # Выбранный тип базы данных ("sqlite" или "mysql")
+    type: "sqlite"
+    # Параметры подключения к удалённому серверу MySQL
+    # Настройки ниже сработают только в том случае, если параметр "type" выше изменён на "mysql"
+    mysql:
+      # Айпи-адрес или домен хостинга, где расположена база данных
+      host: "localhost"
+      # Порт для сетевого подключения (стандартный для MySQL — это "3306")
+      port: 3306
+      # Название созданной базы данных на сервере
+      database: "cachesmanager"
+      # Имя пользователя, имеющего права на запись и чтение этой базы данных
+      username: "root"
+      # Пароль от учётной записи указанного пользователя базы данных
+      password: "password"
+      # Использовать ли безопасное шифрованное SSL соединение (Рекомендуется отключить, если хостинг базы данных этого не требует)
+      use-ssl: false
+    # Автоматически удалять старые .bak-файлы, которые создаются при миграции со старых версий плагина (до появления базы данных)? (true/false)
+    cleanup-backups: true
+    # Через сколько дней после создания автоматически удалять .bak-файлы бэкапов? (true/false)
+    delete-backups-after-days: 1
+    # Удалять папку caches/history полностью, если после миграции в ней не осталось ни одного файла? (true/false)
+    delete-empty-history-folder: true
+
 # Разные события
 #
 # Доступные действия для любого списка:
 #
 #   [message] <Текст> — Отправляет сообщение игроку
 #   [message-console] <Текст> — Отправляет сообщение только в консоль
-#   [broadcast] <Текст> -— Отправляет объявление всем игрокам на сервере
+#   [broadcast] <Текст> — Отправляет объявление всем игрокам на сервере
 #   [sound] <Айди звука> [Громкость] [Питч] — Проигрывает звук игроку
 #   [title] <Текст> [Угасает через] [Остаётся сколько] [Пропадает через] — Показывает заголовок игроку (время в тиках)
 #   [subtitle] <Текст> [Угасает через] [Остаётся сколько] [Пропадает через] — Показывает подзаголовок игроку (время в тиках)
 #   [actionbar] <Текст> — Показывает текст в строке действия игроку
 #   [console-command] <Команда> — Выполняет команду от имени консоли
-#   [player-command] <Команда> —Выполняет команду от имени игрока
+#   [player-command] <Команда> — Выполняет команду от имени игрока
 #   [effect] <Айди эффекта> <Длительность в секундах> [Уровень] — Даёт игроку эффект зелья
 #   [teleport] <x> <y> <z> <Мир> — Телепортирует игрока на координаты
 #   [give-item] <Материал> <Количество> — Выдаёт игроку обычный предмет
 #
+# (Можно полностью удалить определённый акшон, если вы не хотите, чтобы он срабатывал со всеми его командами)
 actions:
   errors:
     no-permission:
@@ -198,7 +241,7 @@ actions:
         - "[message] &#FFFF00▶ &fСмещение голограммы тайника &#FFFF00«{name-cache}» &fуспешно обновлено!"
         - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
       offset-invalid-number:
-        - "[message] &#FB8808▶ Стоп! &fЗначение смещения должно быть числом!"
+        - "[message] &#FB8808▶ Стоп! &fЗначение смещения &#FB8808должно быть &fчислом!"
         - "[sound] BLOCK_ANVIL_LAND"
       offset-x:
         mode-enabled:
@@ -271,6 +314,9 @@ actions:
         - "[sound] BLOCK_ANVIL_LAND"
       same-cache:
         - "[message] &#FB8808▶ Стоп! &fЭтот блок &#FB8808уже установлен &fдля тайника &#FB8808«{name-cache}»"
+        - "[sound] BLOCK_ANVIL_LAND"
+      invalid-block:
+        - "[message] &#FB8808▶ Стоп! &fБлок &#FB8808{block-id} &fне является действительным блоком!"
         - "[sound] BLOCK_ANVIL_LAND"
       set-location:
         - "[message] "
@@ -409,28 +455,28 @@ actions:
       - "[sound] BLOCK_ANVIL_LAND"
   reload:
     success:
-      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
-      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
+      - "[message] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
+      - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Плагин &#FFFF00успешно &fперезагружен за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
     failed:
       - "[message] &#FB8808▶ Ошибка! &fНе удалось перезагрузить плагин: &#FB8808{reason}"
       - "[message-console] &#FB8808▶ Ошибка! &fНе удалось перезагрузить плагин: &#FB8808{reason}"
       - "[sound] BLOCK_ANVIL_LAND"
     configs:
-      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
-      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Конфигурации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
     holograms:
-      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
-      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message] &#FFFF00◆ <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Голограммы над тайниками &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
     animations:
-      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
-      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
+      - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
     all:
-      - "[message] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
-      - "[message-console] &#FFFF00◆ &#FFF200C&#FFEC00a&#FFE500c&#FFDF00h&#FFD800e&#FFD200s&#FFCC00M&#FFC500a&#FFBF00n&#FFB800a&#FFB200g&#FFAB00e&#FFA500r &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
+      - "[message] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
+      - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
 
   stats:
@@ -449,7 +495,10 @@ actions:
       - "[message]   &#FFFF00◆ /cm deletecache <Тайник> &f— Удалить тайник"
       - "[message]   &#FFFF00◆ /cm listcaches &f— Показать список тайников"
       - "[message]   &#FFFF00◆ /cm cancel &f— Отменить режим редактирования тайника"
-      - "[message]   &#FFFF00◆ /cm reload (all/animations/configs/holorgams) &f— Перезагрузить весь плагин или нужную часть"
+      - "[message]   &#FFFF00◆ /cm reload all (-force) &f— Полная перезагрузка плагина"
+      - "[message]   &#FFFF00◆ /cm reload configs &f— Перезагрузить конфигурации"
+      - "[message]   &#FFFF00◆ /cm reload animations &f— Перезагрузить анимации"
+      - "[message]   &#FFFF00◆ /cm reload holograms &f— Перезагрузить голограммы"
       - "[message] "
       - "[sound] BLOCK_LEVER_CLICK"
     createcache:
@@ -471,7 +520,7 @@ actions:
       - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm cancel"
       - "[sound] BLOCK_LEVER_CLICK"
     reload:
-      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm reload (all/animations/configs/holorgams)"
+      - "[message] &#FFFF00◆ &fПравильное использование: &#FFFF00/cm reload all (-force)"
       - "[sound] BLOCK_LEVER_CLICK"
 
   unbreakable-enabled:
@@ -493,9 +542,9 @@ actions:
   update:
     available:
       - "[message] "
-      - "[message] &#00FF5A▶ &fИтак, хочу сказать, что у меня &#00FF5Aпоявилась новая &fверсия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что советую обновить меня)"
+      - "[message] <gradient:#FFFF00:#ffa500>▶ CachesManager</gradient> &f| Итак, хочу сказать, что у меня &#00FF5Aпоявилась новая &fверсия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что советую обновить меня)"
       - "[message] "
       - "[message] &#00FF5A◆ &fСкачать новую версию можно тут: &#00FF5A{download-link}"
       - "[message] "
-      - "[message-console] &#ffff00◆ CachesManager &f| Доступна новая версия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что можно обновить тут: &#ffff00{download-link}"
+      - "[message-console] <gradient:#FFFF00:#ffa500>▶ CachesManager</gradient> &f| Доступна новая версия &#ffff00{latest-version}&f, а текущая — &#ffff00v{current-version}&f, так что можно обновить тут: &#ffff00{download-link}"
       - "[sound] ENTITY_PLAYER_LEVELUP"

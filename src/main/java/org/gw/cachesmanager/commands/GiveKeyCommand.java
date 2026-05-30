@@ -8,16 +8,31 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class GiveKeyCommand {
-    private final CachesManager plugin;
+public class GiveKeyCommand extends AbstractSubCommand {
 
     public GiveKeyCommand(CachesManager plugin) {
-        this.plugin = plugin;
+        super(plugin);
     }
 
-    public boolean execute(CommandSender sender, String[] args) {
+    @Override
+    public String getName() {
+        return "givekey";
+    }
+
+    @Override
+    public String getPermission() {
+        return "cachesmanager.givekey";
+    }
+
+    @Override
+    public boolean isPlayerOnly() {
+        return false;
+    }
+
+    @Override
+    protected boolean handle(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.givekey");
+            sendHelp(sender);
             return true;
         }
 
@@ -60,7 +75,8 @@ public class GiveKeyCommand {
                 if (amount <= 0) amount = 1;
             } else {
                 if (endOffset == 1 || (endOffset == 0 && args.length > 2 && !plugin.getCacheManager().getCaches().containsKey(String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim()))) {
-                    plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount");
+                    Map<String, String> ph = createPlaceholders();
+                    plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount", ph);
                     return true;
                 }
                 amountIndex = args.length - 1;
@@ -78,7 +94,7 @@ public class GiveKeyCommand {
 
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
         if (cacheName.isEmpty()) {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "help.givekey");
+            sendHelp(sender);
             return true;
         }
 

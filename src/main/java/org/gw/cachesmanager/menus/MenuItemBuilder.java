@@ -10,6 +10,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.utils.HexColors;
 import org.gw.cachesmanager.utils.PlaceholderAPIHook;
@@ -98,7 +99,7 @@ public class MenuItemBuilder {
                 meta = item.getItemMeta();
             }
         }
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (section.contains("display-name")) {
             String nameKey = cacheKey + "|name";
             String name = translatedNameCache.computeIfAbsent(nameKey, k -> {
@@ -147,7 +148,7 @@ public class MenuItemBuilder {
         return item;
     }
 
-    private String applyCachePlaceholders(String text, CacheManager.Cache cache) {
+    private String applyCachePlaceholders(String text, Cache cache) {
         String anim = plugin.getAnimationsManager().getAnimations().containsKey(cache.getAnimation())
                 ? plugin.getAnimationsManager().getAnimations().get(cache.getAnimation()).getName() : "Неизвестная анимация";
         return text
@@ -165,7 +166,7 @@ public class MenuItemBuilder {
                 .replace("{key-flags}", cache.getKeyFlagsString());
     }
 
-    private List<String> applyCachePlaceholdersToLore(List<String> lore, CacheManager.Cache cache) {
+    private List<String> applyCachePlaceholdersToLore(List<String> lore, Cache cache) {
         List<String> result = new ArrayList<>();
         String anim = plugin.getAnimationsManager().getAnimations().containsKey(cache.getAnimation())
                 ? plugin.getAnimationsManager().getAnimations().get(cache.getAnimation()).getName() : "Неизвестная анимация";

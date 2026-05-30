@@ -12,6 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.utils.CacheKeys;
 import org.gw.cachesmanager.utils.HexColors;
 
 import java.io.File;
@@ -193,16 +194,6 @@ public class CacheConfigHandler {
                     cfg.set("animation", "up_and_down");
                     cfg.set("loot", new ArrayList<>());
                     cfg.set("unbreakable", true);
-                    cfg.set("stats.created", System.currentTimeMillis());
-                    cfg.set("stats.open-count", 0);
-                    cfg.set("stats.total-loot-given", 0);
-                    cfg.set("stats.last-opened", 0);
-                    cfg.set("stats.top-players", new LinkedHashMap<>());
-                    cfg.set("stats.first-opened", System.currentTimeMillis());
-                    cfg.set("stats.max-daily", 0);
-                    cfg.set("stats.daily-opens", new LinkedHashMap<>());
-                    cfg.set("stats.interval-sum", 0);
-                    cfg.set("stats.interval-count", 0);
                     cfg.save(file);
                 }
                 cacheConfigs.put(cacheName, cfg);
@@ -275,7 +266,7 @@ public class CacheConfigHandler {
                     } catch (Exception ignored) {}
                 }
                 meta.setCustomModelData(cacheConfig.getInt("key.custom-model-data", 0));
-                meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "cache-name"), PersistentDataType.STRING, cacheName);
+                meta.getPersistentDataContainer().set(CacheKeys.CACHE_NAME.getNamespacedKey(), PersistentDataType.STRING, cacheName);
                 key.setItemMeta(meta);
             }
             return key;

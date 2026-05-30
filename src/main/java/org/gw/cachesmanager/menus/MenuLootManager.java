@@ -7,8 +7,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.managers.CacheManager;
-import org.gw.cachesmanager.managers.LootHistoryManager;
 import org.gw.cachesmanager.utils.HexColors;
 import org.gw.cachesmanager.utils.PlaceholderAPIHook;
 
@@ -24,7 +24,7 @@ public class MenuLootManager {
 
     public void fillLootItems(Player player, Inventory inventory, FileConfiguration menuConfig, String cacheName, int page, String menuFile,
                               Map<String, Map<Integer, List<ItemStack>>> cachePageLoot, List<Integer> lootSlots) {
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         Map<Integer, List<ItemStack>> pageLoot = cachePageLoot.computeIfAbsent(cacheName, k -> new HashMap<>());
         List<ItemStack> loot = pageLoot.getOrDefault(page, Collections.emptyList());
@@ -41,7 +41,7 @@ public class MenuLootManager {
         }
     }
 
-    public void applyChanceLore(Player player, ItemStack item, ConfigurationSection settings, CacheManager.Cache cache, int index) {
+    public void applyChanceLore(Player player, ItemStack item, ConfigurationSection settings, Cache cache, int index) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
@@ -59,45 +59,23 @@ public class MenuLootManager {
         item.setItemMeta(meta);
     }
 
-    public void fillHistoryItems(Player player, Inventory inventory, String cacheName, int page, List<Integer> slots) {
-        Deque<LootHistoryManager.HistoryEntry> history = plugin.getLootHistoryManager().getHistory(cacheName);
-        FileConfiguration cfg = plugin.getConfigManager().loadMenuConfig("history-menu.yml");
-        if (cfg == null) return;
-        ConfigurationSection settings = cfg.getConfigurationSection("history-item-settings");
-        int start = (page - 1) * slots.size();
-        int index = 0;
-        for (LootHistoryManager.HistoryEntry entry : history) {
-            if (index < start) {
-                index++;
-                continue;
+    public void fillHistoryItemsAsync(Player player, Inventory inventory, String cacheName, int page, List<Integer> slots) {
+        for (int slot : slots) inventory.setItem(slot, null);
+
+        plugin.getLootHistoryManager().getHistoryItemsAsync(cacheName, historyItems -> {
+            if (player.getOpenInventory() == null || !inventory.equals(player.getOpenInventory().getTopInventory())) {
+                return;
             }
-            if (index - start >= slots.size()) break;
-            ItemStack display = entry.item.clone();
-            if (settings != null) {
-                ItemMeta meta = display.getItemMeta();
-                if (meta != null) {
-                    List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-                    List<String> add = settings.getStringList("lore").stream()
-                            .map(s -> {
-                                String raw = s.replace("{dropped-by}", entry.playerName)
-                                        .replace("{dropped-at}", entry.formattedTime);
-                                raw = PlaceholderAPIHook.parse(player, raw);
-                                return HexColors.translate(raw);
-                            })
-                            .collect(Collectors.toList());
-                    lore.addAll(add);
-                    meta.setLore(lore);
-                    display.setItemMeta(meta);
-                }
+            int start = (page - 1) * slots.size();
+            for (int i = 0; i < slots.size() && (start + i) < historyItems.size(); i++) {
+                inventory.setItem(slots.get(i), historyItems.get(start + i));
             }
-            inventory.setItem(slots.get(index - start), display);
-            index++;
-        }
+        });
     }
 
     public void saveLootForPage(Player player, String cacheName, int page, Inventory inventory,
                                 Map<String, Map<Integer, List<ItemStack>>> cachePageLoot, List<Integer> lootSlots) {
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         List<ItemStack> currentLoot = new ArrayList<>();
         for (int slot : lootSlots) {
@@ -122,7 +100,7 @@ public class MenuLootManager {
             }
             newLootWithChances.add(new AbstractMap.SimpleEntry<>(item, chance));
         }
-        cache.setLootWithChances(newLootWithChances);
+        plugin.getCacheManager().setCacheLootWithChances(cache, newLootWithChances);
         plugin.getConfigManager().setCacheLoot(cacheName, newLootWithChances);
     }
 }

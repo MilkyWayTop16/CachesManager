@@ -9,6 +9,7 @@ import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.animations.platform.DecentHologramsPlatform;
 import org.gw.cachesmanager.animations.platform.FancyHologramsPlatform;
 import org.gw.cachesmanager.animations.platform.HologramPlatform;
@@ -36,26 +37,49 @@ public class HologramManager implements Listener {
     }
 
     private void selectPlatform(String disablingPlugin) {
+        HologramPlatform oldPlatform = this.platform;
+        String oldName = getCurrentPlatformName();
+
+        HologramPlatform newPlatform;
+
         if (Bukkit.getPluginManager().isPluginEnabled("DecentHolograms") && !"DecentHolograms".equals(disablingPlugin)) {
-            this.platform = new DecentHologramsPlatform();
+            newPlatform = new DecentHologramsPlatform(plugin);
         } else if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms") && !"FancyHolograms".equals(disablingPlugin)) {
-            this.platform = new FancyHologramsPlatform();
+            newPlatform = new FancyHologramsPlatform(plugin);
         } else {
-            this.platform = new ModernMinecraftPlatform(plugin);
+            newPlatform = new ModernMinecraftPlatform(plugin);
         }
+
+        this.platform = newPlatform;
+
+        String newName = getCurrentPlatformName();
+        if (oldPlatform != null && !newName.equals(oldName)) {
+            plugin.log("Смена платформы голограмм: " + oldName + " → " + newName);
+        }
+    }
+
+    private String getCurrentPlatformName() {
+        if (platform == null) return "None";
+        if (platform instanceof DecentHologramsPlatform) return "DecentHolograms";
+        if (platform instanceof FancyHologramsPlatform) return "FancyHolograms";
+        if (platform instanceof ModernMinecraftPlatform) return "Built-in";
+        return platform.getClass().getSimpleName();
     }
 
     @EventHandler
     public void onPluginEnable(PluginEnableEvent event) {
         String name = event.getPlugin().getName();
         if (name.equals("DecentHolograms") || name.equals("FancyHolograms")) {
+            clearAllHolograms();
+
             selectPlatform();
+
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    recreateAllHolograms();
+                    recreateAllActiveHolograms();
                 }
-            }.runTaskLater(plugin, 20L);
+            }.runTaskLater(plugin, 25L);
         }
     }
 
@@ -63,32 +87,40 @@ public class HologramManager implements Listener {
     public void onPluginDisable(PluginDisableEvent event) {
         String name = event.getPlugin().getName();
         if (name.equals("DecentHolograms") || name.equals("FancyHolograms")) {
+            clearAllHolograms();
+
             selectPlatform(name);
+
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    if (plugin.getCacheManager() != null) {
-                        for (String cacheName : plugin.getCacheManager().getCacheNames()) {
-                            CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
-                            if (cache != null && cache.getLocation() != null && cache.isHologramEnabled() && !cache.isInUse()) {
-                                createHologram(cacheName, cache.getLocation(), cache.getHologramText());
-                            }
-                        }
-                    }
+                    recreateAllActiveHolograms();
                 }
-            }.runTaskLater(plugin, 5L);
+            }.runTaskLater(plugin, 10L);
         }
     }
 
-    private void recreateAllHolograms() {
+    private void recreateAllActiveHolograms() {
+        if (plugin.getCacheManager() == null) {
+            pendingHolograms.clear();
+            return;
+        }
+
         pendingHolograms.forEach((cacheName, pending) -> createHologramNow(cacheName, pending.location, pending.text));
         pendingHolograms.clear();
+
+        for (String cacheName : plugin.getCacheManager().getCacheNames()) {
+            Cache cache = plugin.getCacheManager().getCache(cacheName);
+            if (cache != null && cache.getLocation() != null && cache.isHologramEnabled() && !cache.isInUse()) {
+                createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+            }
+        }
     }
 
     public void createHologram(String cacheName, Location location, String text) {
         if (location == null || location.getWorld() == null) return;
 
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache != null && !cache.isHologramEnabled()) {
             removeCacheHologram(cacheName);
             return;
@@ -103,7 +135,7 @@ public class HologramManager implements Listener {
     }
 
     private void createHologramNow(String cacheName, Location location, String text) {
-        CacheManager.Cache c = plugin.getCacheManager().getCache(cacheName);
+        Cache c = plugin.getCacheManager().getCache(cacheName);
         if (c != null && c.isInUse()) {
             return;
         }
@@ -126,8 +158,9 @@ public class HologramManager implements Listener {
 
         try {
             platform.createHologram(safeId, holoLoc, text);
-        } catch (Exception e) {
-            plugin.error("Критический сбой создания голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
+        } catch (Throwable t) {
+            plugin.error("Критический сбой создания голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + t.getMessage() + "&f)...");
+            t.printStackTrace();
         }
     }
 
@@ -148,7 +181,7 @@ public class HologramManager implements Listener {
     }
 
     public void updateHologram(String cacheName, String newText) {
-        CacheManager.Cache cache = plugin.getCacheManager().getCache(cacheName);
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache != null && cache.getLocation() != null) {
             if (cache.isInUse()) {
                 return;
@@ -156,8 +189,9 @@ public class HologramManager implements Listener {
             String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
             try {
                 platform.updateHologram(safeId, newText);
-            } catch (Exception e) {
-                plugin.error("Ошибка обновления голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + e.getMessage() + "&f)...");
+            } catch (Throwable t) {
+                plugin.error("Ошибка обновления голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + t.getMessage() + "&f)...");
+                t.printStackTrace();
             }
         }
     }
@@ -167,7 +201,9 @@ public class HologramManager implements Listener {
         String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
         try {
             platform.deleteHologram(safeId);
-        } catch (Exception ignored) {}
+        } catch (Throwable t) {
+            plugin.error("Ошибка при удалении голограммы тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + t.getMessage() + "&f)");
+        }
     }
 
     public void removeHologram(String cacheName) {
@@ -179,9 +215,90 @@ public class HologramManager implements Listener {
 
     public void clearAllHolograms() {
         pendingHolograms.clear();
+
         if (plugin.getCacheManager() != null) {
-            new ArrayList<>(plugin.getCacheManager().getCaches().keySet())
-                    .forEach(this::removeCacheHologram);
+            for (String cacheName : new ArrayList<>(plugin.getCacheManager().getCaches().keySet())) {
+                removeCacheHologram(cacheName);
+            }
+        }
+
+        if (platform instanceof ModernMinecraftPlatform) {
+            forceCleanupModernHologramEntities();
+        }
+    }
+    
+    private void forceCleanupModernHologramEntities() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                int removed = 0;
+                for (org.bukkit.World world : Bukkit.getWorlds()) {
+                    for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                        if (entity instanceof org.bukkit.entity.ArmorStand || entity instanceof org.bukkit.entity.TextDisplay) {
+                            var pdc = entity.getPersistentDataContainer();
+                            if (pdc.has(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                                String id = pdc.get(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING);
+                                if (id != null && id.startsWith("cm_")) {
+                                    entity.remove();
+                                    removed++;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (removed > 0) {
+                    plugin.log("Принудительно удалено " + removed + " голограмм встроенной платформы");
+                }
+            }
+        }.runTaskLater(plugin, 5L);
+    }
+
+    public void cleanupLegacyHologramsFromV12() {
+        if (plugin.getCacheManager() == null) return;
+
+        List<String> names = plugin.getCacheManager().getCacheNames();
+        if (names.isEmpty()) return;
+
+        plugin.console("&#ffff00◆ CachesManager &f| Очистка старых голограмм от версии 1.2...");
+
+        for (String name : names) {
+            String sanitized = name.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
+
+            safeDeleteLegacyId("caches_" + name.hashCode());
+            safeDeleteLegacyId("caches_" + sanitized);
+            safeDeleteLegacyId("caches_" + name);
+            safeDeleteLegacyId(name);
+        }
+
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                int removed = 0;
+                for (org.bukkit.World world : org.bukkit.Bukkit.getWorlds()) {
+                    for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                        if (entity instanceof org.bukkit.entity.ArmorStand || entity instanceof org.bukkit.entity.TextDisplay) {
+                            var pdc = entity.getPersistentDataContainer();
+                            if (pdc.has(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                                String id = pdc.get(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING);
+                                if (id != null && id.startsWith("caches_")) {
+                                    entity.remove();
+                                    removed++;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (removed > 0) {
+                    plugin.console("&#ffff00◆ CachesManager &f| Удалено " + removed + " устаревших голограмм от предыдущей версии");
+                }
+            }
+        }.runTaskLater(plugin, 40L);
+    }
+
+    private void safeDeleteLegacyId(String id) {
+        try {
+            platform.deleteHologram(id);
+        } catch (Throwable ignored) {
         }
     }
 

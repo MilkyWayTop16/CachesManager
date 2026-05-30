@@ -5,23 +5,33 @@ import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 
-public class MenuCommand {
-    private final CachesManager plugin;
+public class MenuCommand extends AbstractSubCommand {
 
     public MenuCommand(CachesManager plugin) {
-        this.plugin = plugin;
+        super(plugin);
     }
 
-    public boolean execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
-            plugin.getConfigManager().executeActions(null, "errors.console-not-allowed");
-            return true;
-        }
+    @Override
+    public String getName() {
+        return "menu";
+    }
+
+    @Override
+    public String getPermission() {
+        return "cachesmanager.menu";
+    }
+
+    @Override
+    public boolean isPlayerOnly() {
+        return true;
+    }
+
+    @Override
+    protected boolean handle(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            plugin.getConfigManager().executeActions((Player) sender, "help.menu");
+            sendHelp(sender);
             return true;
         }
 
@@ -49,11 +59,11 @@ public class MenuCommand {
         menuFile = plugin.getConfigManager().sanitizeMenuFile(menuFile);
 
         if (cacheName.isEmpty()) {
-            plugin.getConfigManager().executeActions(player, "help.menu");
+            sendHelp(sender);
             return true;
         }
 
-        Map<String, String> ph = new HashMap<>();
+        Map<String, String> ph = createPlaceholders();
         ph.put("name-cache", cacheName);
 
         if (plugin.getCacheManager().getCache(cacheName) == null) {

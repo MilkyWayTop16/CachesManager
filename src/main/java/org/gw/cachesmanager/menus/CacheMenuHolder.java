@@ -1,12 +1,17 @@
 package org.gw.cachesmanager.menus;
 
+import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.jetbrains.annotations.NotNull;
 
 public class CacheMenuHolder implements InventoryHolder {
+    @Getter
     private final String menuFile;
+    @Getter
     private final String cacheName;
+    @Getter
     private int currentPage;
     @Setter
     private Inventory inventory;
@@ -18,23 +23,7 @@ public class CacheMenuHolder implements InventoryHolder {
     }
 
     @Override
-    public Inventory getInventory() {
+    public @NotNull Inventory getInventory() {
         return inventory;
-    }
-
-    public String getMenuFile() {
-        return menuFile;
-    }
-
-    public String getCacheName() {
-        return cacheName;
-    }
-
-    public int getCurrentPage() {
-        return currentPage;
-    }
-
-    public void setCurrentPage(int currentPage) {
-        this.currentPage = currentPage;
     }
 }

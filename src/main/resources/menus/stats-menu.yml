@@ -10,6 +10,10 @@
 #                             Мне будет очень приятно :)
 #
 
+# Версия конфигурации плагина
+# (Ни в коем случае не трогать данный параметр!)
+config-version: 1.3
+
 menu:
   title: "&8◆ Статистика тайника «{name-cache}»"
   size: 54
@@ -22,8 +26,11 @@ items:
     display-name: '             &#FFFF00▶ &fОбщая статистика'
     lore:
       - ''
-      - '  &#FFFF00◆ &fОткрытий: &#FFFF00{open-count}'
-      - '  &#FFFF00◆ &fВыдано лута: &#FFFF00{total-loot-given}'
+      - '  &#FFFF00◆ &fОткрытий всего: &#FFFF00{cache-opens-total}'
+      - '  &#FFFF00◆ &fОткрытий за 7 дней: &#FFFF00{cache-opens-7d}'
+      - '  &#FFFF00◆ &fСреднее открытий в день: &#FFFF00{cache-opens-per-day-avg}'
+      - '  &#FFFF00◆ &fСреднее открытий на игрока: &#FFFF00{cache-avg-opens-per-player}'
+      - '  &#FFFF00◆ &fПиковый час: &#FFFF00{cache-peak-hour}'
       - '  &#FFFF00◆ &fСоздан: &#FFFF00{created-date}'
       - '  &#FFFF00◆ &fПоследнее открытие: &#FFFF00{last-opened}  '
       - ''
@@ -51,9 +58,11 @@ items:
     display-name: '           &#FFFF00▶ &fРекорды'
     lore:
       - ''
-      - '  &#FFFF00◆ &fПервое: &#FFFF00{first-date}'
-      - '  &#FFFF00◆ &fРекорд/день: &#FFFF00{max-daily}'
-      - '  &#FFFF00◆ &fСредний интервал: &#FFFF00{avg-interval} мин'
+      - '  &#FFFF00◆ &fПервое открытие: &#FFFF00{first-opened}'
+      - '  &#FFFF00◆ &fПоследнее открытие: &#FFFF00{last-opened}'
+      - '  &#FFFF00◆ &fСамый длинный перерыв: &#FFFF00{longest-drought}'
+      - '  &#FFFF00◆ &fСамый короткий интервал: &#FFFF00{shortest-interval}'
+      - '  &#FFFF00◆ &fСамый активный день: &#FFFF00{most-active-day}'
       - ''
     update: true
 

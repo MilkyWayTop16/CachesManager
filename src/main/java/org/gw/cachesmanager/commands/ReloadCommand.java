@@ -8,38 +8,54 @@ import org.gw.cachesmanager.CachesManager;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ReloadCommand {
-    private final CachesManager plugin;
+public class ReloadCommand extends AbstractSubCommand {
 
     public ReloadCommand(CachesManager plugin) {
-        this.plugin = plugin;
+        super(plugin);
     }
 
-    public boolean execute(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("cachesmanager.reload")) {
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.no-permission");
-            return true;
-        }
+    @Override
+    public String getName() {
+        return "reload";
+    }
 
+    @Override
+    public String getPermission() {
+        return "cachesmanager.reload";
+    }
+
+    @Override
+    public boolean isPlayerOnly() {
+        return false;
+    }
+
+    @Override
+    protected boolean handle(CommandSender sender, String[] args) {
         String mode = (args.length > 1) ? args[1].toLowerCase() : "configs";
         long startTime = System.currentTimeMillis();
 
         String path;
         switch (mode) {
             case "all":
-                plugin.reloadPlugin();
-                path = "reload.all";
+                boolean force = args.length > 2 && args[2].equalsIgnoreCase("-force");
+                if (force) {
+                    plugin.forceReloadPlugin();
+                    path = "reload.all";
+                } else {
+                    plugin.reloadPlugin();
+                    path = "reload.all";
+                }
                 break;
             case "configs":
-                plugin.console("&#ffff00◆ CachesManager &f| Перезагрузка всех конфигураций...");
+                plugin.log("Перезагрузка всех конфигураций...");
                 String error = plugin.getConfigManager().reloadConfig();
                 if (error != null) {
-                    Map<String, String> ph = new HashMap<>();
+                    Map<String, String> ph = createPlaceholders();
                     ph.put("reason", error);
                     plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "reload.failed", ph);
                     return true;
                 }
-                plugin.getAnimationsManager().reloadAnimations();
+                plugin.getAnimationsManager().reloadAnimations(false);
                 new BukkitRunnable() {
                     @Override
                     public void run() {
@@ -50,7 +66,7 @@ public class ReloadCommand {
                 path = "reload.configs";
                 break;
             case "holograms":
-                plugin.console("&#ffff00◆ CachesManager &f| Перезагрузка голограмм над тайниками...");
+                plugin.log("Перезагрузка голограмм над тайниками...");
                 plugin.getCacheManager().removeAllHolograms();
                 new BukkitRunnable() {
                     @Override
@@ -61,14 +77,8 @@ public class ReloadCommand {
                 path = "reload.holograms";
                 break;
             case "animations":
-                plugin.console("&#ffff00◆ CachesManager &f| Перезагрузка системы анимаций...");
-                plugin.getAnimationsManager().reloadAnimations();
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        plugin.getCacheManager().loadCaches();
-                    }
-                }.runTask(plugin);
+                plugin.log("Перезагрузка системы анимаций...");
+                plugin.getAnimationsManager().reloadAnimations(false);
                 path = "reload.animations";
                 break;
             default:
@@ -77,10 +87,15 @@ public class ReloadCommand {
         }
 
         long ms = System.currentTimeMillis() - startTime;
-        Map<String, String> ph = new HashMap<>();
+        Map<String, String> ph = createPlaceholders();
         ph.put("ms", String.valueOf(ms));
 
         plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, path, ph);
+
+        if (plugin.getMenuManager() != null) {
+            plugin.getMenuManager().refreshOpenMenus();
+        }
+
         return true;
     }
 }

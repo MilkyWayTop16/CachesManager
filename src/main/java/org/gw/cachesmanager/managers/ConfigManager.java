@@ -12,7 +12,6 @@ import org.gw.cachesmanager.configs.CacheConfigHandler;
 import org.gw.cachesmanager.configs.MainConfig;
 import org.gw.cachesmanager.configs.MenuConfigHandler;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,12 +36,13 @@ public class ConfigManager {
     }
 
     public FileConfiguration getConfig() { return mainConfig.getConfig(); }
-    public File getCachesFolder() { return cacheConfigHandler.getCachesFolder(); }
-    public File getMenusFolder() { return menuConfigHandler.getMenusFolder(); }
     public boolean isLogsInConsoleEnabled() { return mainConfig.isLogsInConsole(); }
     public int getModeTimeoutSeconds() { return mainConfig.getModeTimeoutSeconds(); }
     public int getHistoryMaxEntries() { return mainConfig.getHistoryMaxEntries(); }
-    public int getHistoryMaxDays() { return mainConfig.getHistoryMaxDays(); }
+
+    public boolean isCleanupBackups() { return mainConfig.isCleanupBackups(); }
+    public int getDeleteBackupsAfterDays() { return mainConfig.getDeleteBackupsAfterDays(); }
+    public boolean isDeleteEmptyHistoryFolder() { return mainConfig.isDeleteEmptyHistoryFolder(); }
     public boolean isTrimHologramItemName() { return mainConfig.isTrimHologramItemName(); }
 
     public String reloadConfig() {
@@ -82,10 +82,6 @@ public class ConfigManager {
 
     public void forceSaveAllCacheConfigs() {
         cacheConfigHandler.forceSaveAllCacheConfigs();
-    }
-
-    public boolean renameCacheConfig(String oldName, String newName) {
-        return cacheConfigHandler.renameCacheConfig(oldName, newName);
     }
 
     public void setCacheHologramText(String cacheName, String hologramText) {
@@ -210,6 +206,14 @@ public class ConfigManager {
     public String getUpdateNotifyMode() { return getConfig().getString("settings.update-checker.notify-mode", "both").toLowerCase(); }
     public int getUpdatePeriodicIntervalHours() { return Math.max(1, getConfig().getInt("settings.update-checker.periodic-interval-hours", 6)); }
     public boolean isBStatsEnabled() { return getConfig().getBoolean("settings.bstats.enabled", true); }
+
+    public String getDatabaseType() { return getConfig().getString("settings.database.type", "sqlite").toLowerCase(); }
+    public String getMySqlHost() { return getConfig().getString("settings.database.mysql.host", "localhost"); }
+    public int getMySqlPort() { return getConfig().getInt("settings.database.mysql.port", 3306); }
+    public String getMySqlDatabase() { return getConfig().getString("settings.database.mysql.database", "cachesmanager"); }
+    public String getMySqlUsername() { return getConfig().getString("settings.database.mysql.username", "root"); }
+    public String getMySqlPassword() { return getConfig().getString("settings.database.mysql.password", "password"); }
+    public boolean isMySqlSsl() { return getConfig().getBoolean("settings.database.mysql.use-ssl", false); }
 
     public String sanitizeCacheName(String name) {
         return cacheConfigHandler.sanitizeCacheName(name);

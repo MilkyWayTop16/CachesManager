@@ -1,53 +1,44 @@
 package org.gw.cachesmanager.animations;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.animations.platform.*;
 import org.gw.cachesmanager.animations.view.*;
 
 public class AnimationEngineConfigurator {
-    public static PacketPlatform selectPacketPlatform() {
+
+    @FunctionalInterface
+    public interface PacketItemMetadataSender {
+        void sendItemHologramMetadata(ArmorStand armorStand, Player player, ItemStack item);
+    }
+
+    public static PacketItemMetadataSender selectPacketPlatform() {
         try {
             if (Bukkit.getPluginManager().isPluginEnabled("PacketEvents")) {
-                return (PacketPlatform) Class.forName("org.gw.cachesmanager.animations.platform.PacketEventsPlatform")
-                        .getDeclaredConstructor().newInstance();
+                PacketEventsPlatform impl = new PacketEventsPlatform();
+                return impl::sendItemHologramMetadata;
             }
         } catch (Exception ignored) {}
 
         try {
             if (Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")) {
-                return (PacketPlatform) Class.forName("org.gw.cachesmanager.animations.platform.ProtocolLibPlatform")
-                        .getDeclaredConstructor().newInstance();
+                ProtocolLibPlatform impl = new ProtocolLibPlatform();
+                return impl::sendItemHologramMetadata;
             }
         } catch (Exception ignored) {}
 
         return null;
     }
 
-    public static HologramPlatform selectHologramPlatform() {
-        try {
-            if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms")) {
-                return (HologramPlatform) Class.forName("org.gw.cachesmanager.animations.platform.FancyHologramsPlatform")
-                        .getDeclaredConstructor().newInstance();
-            }
-        } catch (Exception ignored) {}
-
-        try {
-            if (Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")) {
-                return (HologramPlatform) Class.forName("org.gw.cachesmanager.animations.platform.DecentHologramsPlatform")
-                        .getDeclaredConstructor().newInstance();
-            }
-        } catch (Exception ignored) {}
-
-        return new ModernMinecraftPlatform(CachesManager.getPlugin(CachesManager.class));
-    }
-
-    public static AnimationView selectAnimationView(CachesManager plugin, PacketPlatform packetPlatform) {
+    public static AnimationView selectAnimationView(CachesManager plugin, PacketItemMetadataSender sender) {
         try {
             Class.forName("org.bukkit.entity.ItemDisplay");
             return new ModernAnimationView(plugin);
         } catch (ClassNotFoundException e) {
-            return new LegacyAnimationView(plugin, packetPlatform);
+            return new LegacyAnimationView(plugin, sender);
         }
     }
 }
