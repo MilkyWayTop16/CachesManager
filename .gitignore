@@ -2,6 +2,7 @@
 *.iml
 out/
 
+references/
 target/
 build/
 *.jar
