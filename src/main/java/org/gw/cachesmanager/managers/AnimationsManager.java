@@ -28,8 +28,6 @@ public class AnimationsManager implements Listener {
         this.executor = new AnimationExecutor(plugin, registry, animationView);
         this.listener = new AnimationListener(plugin, executor);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
-
-        startOrphanedAnimationChecker();
     }
 
     public Map<String, Animation> getAnimations() {
@@ -70,14 +68,4 @@ public class AnimationsManager implements Listener {
         registry.load();
     }
 
-    public void startOrphanedAnimationChecker() {
-        long ticks = 12 * 20L;
-
-        new org.bukkit.scheduler.BukkitRunnable() {
-            @Override
-            public void run() {
-                executor.checkOrphanedAnimations();
-            }
-        }.runTaskTimer(plugin, ticks, ticks);
-    }
 }

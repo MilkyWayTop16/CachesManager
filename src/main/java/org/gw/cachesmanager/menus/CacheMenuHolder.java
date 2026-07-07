@@ -2,6 +2,7 @@ package org.gw.cachesmanager.menus;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +16,8 @@ public class CacheMenuHolder implements InventoryHolder {
     private int currentPage;
     @Setter
     private Inventory inventory;
+    @Getter @Setter
+    private FileConfiguration menuConfig;
 
     public CacheMenuHolder(String menuFile, String cacheName, int currentPage) {
         this.menuFile = menuFile;

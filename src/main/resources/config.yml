@@ -6,13 +6,13 @@
 #
 #     ◆ Нашёл баг/ошибку/недочёт? Напиши мне о проблеме в Телеграмме - @vkusniy_milkyway
 #            ◆ Если плагин для тебя очень интересный, то ты всегда можешь
-#        оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSquadd
+#          оставить отзыв плагину, ну и подписаться на мой Тгк - @GornaSqd
 #                             Мне будет очень приятно :)
 #
 
 # Версия конфигурации плагина
 # (Ни в коем случае не трогать данный параметр!)
-config-version: 1.3
+config-version: 1.4
 
 # Настройки всех параметров
 settings:
@@ -475,6 +475,7 @@ actions:
       - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Анимации &#FFFF00успешно &fперезагружены за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"
     all:
+      # На версии сервера 1.16, при 17 установленной Java, градиент отображаться корректно не будет, так как на этой версии не появился minimessage
       - "[message] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
       - "[message-console] <gradient:#FFFF00:#ffa500>◆ CachesManager</gradient> &f| Полная перезагрузка плагина завершена за &#FFFF00{ms}мс."
       - "[sound] ENTITY_PLAYER_LEVELUP"

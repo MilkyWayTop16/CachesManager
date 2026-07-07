@@ -30,7 +30,7 @@ public class HologramTextModeHandler implements ChatModeHandler {
         cacheManager.setCacheHologramText(cache, newText);
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
 
         configManager.executeActions(player, "interaction.hologram.change-text.completed", ph);
         return true;

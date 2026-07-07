@@ -66,7 +66,8 @@ public class CachesManager extends JavaPlugin {
 
     private boolean checkRequiredDependencies() {
         boolean hasPacketLib = Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")
-                || Bukkit.getPluginManager().isPluginEnabled("PacketEvents");
+                || Bukkit.getPluginManager().isPluginEnabled("PacketEvents")
+                || Bukkit.getPluginManager().isPluginEnabled("packetevents");
 
         if (!hasPacketLib) {
             error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка...");
@@ -303,7 +304,7 @@ public class CachesManager extends JavaPlugin {
 
     public void console(String message) {
         if (message == null) return;
-        Bukkit.getConsoleSender().sendMessage(HexColors.translate(message));
+        Bukkit.getConsoleSender().sendMessage(HexColors.translateForConsole(message));
     }
 
     public void log(String message) {
@@ -313,6 +314,6 @@ public class CachesManager extends JavaPlugin {
     }
 
     public void error(String message) {
-        Bukkit.getConsoleSender().sendMessage(HexColors.translate("&#FB8808◆ CachesManager &f| " + message));
+        Bukkit.getConsoleSender().sendMessage(HexColors.translateForConsole("&#FB8808◆ CachesManager &f| " + message));
     }
 }

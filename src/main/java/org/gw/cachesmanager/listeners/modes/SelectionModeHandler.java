@@ -71,7 +71,7 @@ public class SelectionModeHandler implements ChatModeHandler {
         Location location = new Location(world, x, y, z);
         Cache existing = cacheManager.getCacheByLocation(location);
         if (existing != null && !existing.getName().equals(cache.getName())) {
-            ph.put("name-cache", existing.getDisplayName());
+            ph.put("name-cache", existing.getName());
             configManager.executeActions(player, "cache.already-exists", ph);
             return false;
         }

@@ -42,8 +42,13 @@ public class ConfigUpdater {
 
         if (changed) {
             createBackup(targetFile);
-            userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
+        }
+        userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
+        if (changed) {
             saveConfig(targetFile, userConfig, "Конфиг " + targetFile.getName() + " обновлён");
+        } else {
+            // version bump only
+            saveConfig(targetFile, userConfig, "Версия конфига " + targetFile.getName() + " обновлена до " + defaultConfig.getString("config-version", "1.0"));
         }
     }
 
@@ -75,8 +80,12 @@ public class ConfigUpdater {
 
         if (changed) {
             createBackup(targetFile);
-            userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
+        }
+        userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
+        if (changed) {
             saveConfig(targetFile, userConfig, "Меню " + targetFile.getName() + " обновлено");
+        } else {
+            saveConfig(targetFile, userConfig, "Версия меню " + targetFile.getName() + " обновлена до " + defaultConfig.getString("config-version", "1.0"));
         }
 
         return changed;

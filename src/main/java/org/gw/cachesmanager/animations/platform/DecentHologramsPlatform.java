@@ -5,7 +5,9 @@ import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.Location;
 import org.gw.cachesmanager.CachesManager;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class DecentHologramsPlatform implements HologramPlatform {
 
@@ -17,9 +19,16 @@ public class DecentHologramsPlatform implements HologramPlatform {
 
     @Override
     public void createHologram(String id, Location location, String text) {
+        List<String> lines = (text == null || text.isEmpty()) ? new ArrayList<>() : Arrays.asList(text.split("\n"));
+        createHologram(id, location, lines);
+    }
+
+    @Override
+    public void createHologram(String id, Location location, List<String> lines) {
         try {
             deleteHologram(id);
-            DHAPI.createHologram(id, location, Arrays.asList(text.split("\n")));
+            List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
+            DHAPI.createHologram(id, location, safeLines);
         } catch (Throwable t) {
             if (plugin != null) {
                 plugin.error("Ошибка создания голограммы через DecentHolograms (айди: " + id + ")");
@@ -29,10 +38,17 @@ public class DecentHologramsPlatform implements HologramPlatform {
 
     @Override
     public void updateHologram(String id, String text) {
+        List<String> lines = (text == null || text.isEmpty()) ? new ArrayList<>() : Arrays.asList(text.split("\n"));
+        updateHologram(id, lines);
+    }
+
+    @Override
+    public void updateHologram(String id, List<String> lines) {
         try {
             Hologram hologram = DHAPI.getHologram(id);
             if (hologram != null) {
-                DHAPI.setHologramLines(hologram, Arrays.asList(text.split("\n")));
+                List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
+                DHAPI.setHologramLines(hologram, safeLines);
             }
         } catch (Throwable t) {
             if (plugin != null) {

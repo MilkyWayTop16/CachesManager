@@ -4,6 +4,10 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.managers.ConfigManager;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class CachePersistenceHandler {
     private final CachesManager plugin;
     private final ConfigManager configManager;
@@ -24,7 +28,20 @@ public class CachePersistenceHandler {
         cache.setLootWithChances(configManager.getCacheLootWithChances(config));
         cache.setUnbreakable(configManager.isCacheUnbreakable(cache.getName()));
         cache.setDisplayName(configManager.getCacheDisplayName(cache.getName()));
-        cache.setHologramText(config.getString("hologram.text"));
+        Object holoTextObj = config.get("hologram.text");
+        List<String> holoLines = new ArrayList<>();
+        if (holoTextObj instanceof List<?>) {
+            @SuppressWarnings("unchecked")
+            List<String> lines = (List<String>) holoTextObj;
+            holoLines = new ArrayList<>(lines);
+        } else {
+            String text = config.getString("hologram.text");
+            if (text != null) {
+                text = text.replace("\\n", "\n");
+                holoLines = new ArrayList<>(Arrays.asList(text.split("\n")));
+            }
+        }
+        cache.setHologramLines(holoLines);
         cache.setAnimation(configManager.getCacheAnimation(cache.getName()));
         cache.setHologramEnabled(config.getBoolean("hologram.enabled", true));
         cache.setHologramOffsetX(config.getDouble("hologram.offset.x", 0.0));

@@ -13,9 +13,10 @@ import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.animations.platform.DecentHologramsPlatform;
 import org.gw.cachesmanager.animations.platform.FancyHologramsPlatform;
 import org.gw.cachesmanager.animations.platform.HologramPlatform;
-import org.gw.cachesmanager.animations.platform.ModernMinecraftPlatform;
+import org.gw.cachesmanager.animations.platform.LegacyMinecraftPlatform;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,7 +48,24 @@ public class HologramManager implements Listener {
         } else if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms") && !"FancyHolograms".equals(disablingPlugin)) {
             newPlatform = new FancyHologramsPlatform(plugin);
         } else {
-            newPlatform = new ModernMinecraftPlatform(plugin);
+            // Only try modern platform if the server supports TextDisplay (1.19.4+)
+            boolean supportsModern = false;
+            try {
+                Class.forName("org.bukkit.entity.TextDisplay");
+                supportsModern = true;
+            } catch (ClassNotFoundException ignored) {}
+
+            if (supportsModern) {
+                try {
+                    Class<?> modernClass = Class.forName("org.gw.cachesmanager.animations.platform.ModernMinecraftPlatform");
+                    newPlatform = (HologramPlatform) modernClass.getConstructor(CachesManager.class).newInstance(plugin);
+                } catch (Throwable t) {
+                    plugin.log("Встроенная платформа голограмм недоступна, голограммы могут не работать.");
+                    newPlatform = null;
+                }
+            } else {
+                newPlatform = new LegacyMinecraftPlatform(plugin);
+            }
         }
 
         this.platform = newPlatform;
@@ -60,9 +78,11 @@ public class HologramManager implements Listener {
 
     private String getCurrentPlatformName() {
         if (platform == null) return "None";
-        if (platform instanceof DecentHologramsPlatform) return "DecentHolograms";
-        if (platform instanceof FancyHologramsPlatform) return "FancyHolograms";
-        if (platform instanceof ModernMinecraftPlatform) return "Built-in";
+        String className = platform.getClass().getName();
+        if (className.endsWith("DecentHologramsPlatform")) return "DecentHolograms";
+        if (className.endsWith("FancyHologramsPlatform")) return "FancyHolograms";
+        if (className.endsWith("ModernMinecraftPlatform")) return "Built-in";
+        if (className.endsWith("LegacyMinecraftPlatform")) return "Built-in";
         return platform.getClass().getSimpleName();
     }
 
@@ -106,18 +126,23 @@ public class HologramManager implements Listener {
             return;
         }
 
-        pendingHolograms.forEach((cacheName, pending) -> createHologramNow(cacheName, pending.location, pending.text));
+        pendingHolograms.forEach((cacheName, pending) -> createHologramNow(cacheName, pending.location, pending.lines));
         pendingHolograms.clear();
 
         for (String cacheName : plugin.getCacheManager().getCacheNames()) {
             Cache cache = plugin.getCacheManager().getCache(cacheName);
             if (cache != null && cache.getLocation() != null && cache.isHologramEnabled() && !cache.isInUse()) {
-                createHologram(cacheName, cache.getLocation(), cache.getHologramText());
+                createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
             }
         }
     }
 
     public void createHologram(String cacheName, Location location, String text) {
+        List<String> lines = (text == null || text.isEmpty()) ? new ArrayList<>() : Arrays.asList(text.split("\n"));
+        createHologram(cacheName, location, lines);
+    }
+
+    public void createHologram(String cacheName, Location location, List<String> lines) {
         if (location == null || location.getWorld() == null) return;
 
         Cache cache = plugin.getCacheManager().getCache(cacheName);
@@ -127,14 +152,14 @@ public class HologramManager implements Listener {
         }
 
         if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-            pendingHolograms.put(cacheName, new PendingHologram(location, text));
+            pendingHolograms.put(cacheName, new PendingHologram(location, lines));
             return;
         }
 
-        createHologramNow(cacheName, location, text);
+        createHologramNow(cacheName, location, lines);
     }
 
-    private void createHologramNow(String cacheName, Location location, String text) {
+    private void createHologramNow(String cacheName, Location location, List<String> lines) {
         Cache c = plugin.getCacheManager().getCache(cacheName);
         if (c != null && c.isInUse()) {
             return;
@@ -147,17 +172,20 @@ public class HologramManager implements Listener {
             offsetZ = c.getHologramOffsetZ();
         }
 
+        int lineCount = (lines == null) ? 0 : lines.size();
+        double extraY = lineCount > 0 ? (lineCount - 1) * 0.28 : 0.0;
+
         Location holoLoc = new Location(
                 location.getWorld(),
                 location.getBlockX() + 0.5 + offsetX,
-                location.getBlockY() + 1.0 + offsetY,
+                location.getBlockY() + 1.0 + offsetY + extraY,
                 location.getBlockZ() + 0.5 + offsetZ
         );
 
         String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
 
         try {
-            platform.createHologram(safeId, holoLoc, text);
+            platform.createHologram(safeId, holoLoc, lines);
         } catch (Throwable t) {
             plugin.error("Критический сбой создания голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + t.getMessage() + "&f)...");
             t.printStackTrace();
@@ -173,7 +201,7 @@ public class HologramManager implements Listener {
             if (loc.getWorld().equals(event.getWorld()) &&
                     loc.getBlockX() >> 4 == event.getChunk().getX() &&
                     loc.getBlockZ() >> 4 == event.getChunk().getZ()) {
-                createHologramNow(cacheName, loc, pending.text);
+                createHologramNow(cacheName, loc, pending.lines);
                 return true;
             }
             return false;
@@ -181,6 +209,11 @@ public class HologramManager implements Listener {
     }
 
     public void updateHologram(String cacheName, String newText) {
+        List<String> lines = (newText == null || newText.isEmpty()) ? new ArrayList<>() : Arrays.asList(newText.split("\n"));
+        updateHologram(cacheName, lines);
+    }
+
+    public void updateHologram(String cacheName, List<String> lines) {
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache != null && cache.getLocation() != null) {
             if (cache.isInUse()) {
@@ -188,7 +221,7 @@ public class HologramManager implements Listener {
             }
             String safeId = "cm_" + cacheName.toLowerCase().replaceAll("[^a-zA-Z0-9_]", "");
             try {
-                platform.updateHologram(safeId, newText);
+                platform.updateHologram(safeId, lines);
             } catch (Throwable t) {
                 plugin.error("Ошибка обновления голограммы для тайника &#FB8808" + cacheName + " &f(Ошибка: &#FB8808" + t.getMessage() + "&f)...");
                 t.printStackTrace();
@@ -222,7 +255,9 @@ public class HologramManager implements Listener {
             }
         }
 
-        if (platform instanceof ModernMinecraftPlatform) {
+        if (platform != null && 
+            (platform.getClass().getName().endsWith("ModernMinecraftPlatform") || 
+             platform.getClass().getName().endsWith("LegacyMinecraftPlatform"))) {
             forceCleanupModernHologramEntities();
         }
     }
@@ -234,16 +269,20 @@ public class HologramManager implements Listener {
                 int removed = 0;
                 for (org.bukkit.World world : Bukkit.getWorlds()) {
                     for (org.bukkit.entity.Entity entity : world.getEntities()) {
-                        if (entity instanceof org.bukkit.entity.ArmorStand || entity instanceof org.bukkit.entity.TextDisplay) {
-                            var pdc = entity.getPersistentDataContainer();
-                            if (pdc.has(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
-                                String id = pdc.get(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING);
-                                if (id != null && id.startsWith("cm_")) {
-                                    entity.remove();
-                                    removed++;
+                        try {
+                            boolean isArmorStand = entity instanceof org.bukkit.entity.ArmorStand;
+                            boolean isTextDisplay = entity.getClass().getName().contains("TextDisplay");
+                            if (isArmorStand || isTextDisplay) {
+                                var pdc = entity.getPersistentDataContainer();
+                                if (pdc.has(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
+                                    String id = pdc.get(org.gw.cachesmanager.utils.CacheKeys.HOLOGRAM_ID.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING);
+                                    if (id != null && id.startsWith("cm_")) {
+                                        entity.remove();
+                                        removed++;
+                                    }
                                 }
                             }
-                        }
+                        } catch (Throwable ignored) {}
                     }
                 }
                 if (removed > 0) {
@@ -304,10 +343,10 @@ public class HologramManager implements Listener {
 
     private static class PendingHologram {
         final Location location;
-        final String text;
-        PendingHologram(Location location, String text) {
+        final List<String> lines;
+        PendingHologram(Location location, List<String> lines) {
             this.location = location.clone();
-            this.text = text;
+            this.lines = (lines != null) ? new ArrayList<>(lines) : new ArrayList<>();
         }
     }
 }

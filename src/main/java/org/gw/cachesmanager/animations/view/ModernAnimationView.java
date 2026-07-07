@@ -1,5 +1,6 @@
 package org.gw.cachesmanager.animations.view;
 
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Item;
@@ -14,7 +15,6 @@ import org.gw.cachesmanager.utils.HexColors;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,7 +76,8 @@ public class ModernAnimationView implements AnimationView {
         TextDisplay text = (TextDisplay) location.getWorld().spawnEntity(textLoc, EntityType.TEXT_DISPLAY);
 
         Component displayName = HexColors.getItemNameComponent(item);
-        if (plugin.getConfigManager().isTrimHologramItemName() && displayName instanceof TextComponent) {
+        boolean hasCustomName = item.hasItemMeta() && item.getItemMeta().hasDisplayName();
+        if (plugin.getConfigManager().isTrimHologramItemName() && hasCustomName && displayName instanceof TextComponent) {
             String legacy = LegacyComponentSerializer.legacySection().serialize(displayName);
             legacy = legacy.replaceAll("^\\s+", "");
             displayName = LegacyComponentSerializer.legacySection().deserialize(legacy);
@@ -106,12 +107,6 @@ public class ModernAnimationView implements AnimationView {
         loc.setYaw(ticks * (float) animation.getRotationSpeed());
 
         mount.teleport(loc);
-
-        TextDisplay text = texts.get(cacheName);
-        if (text != null && !text.isDead()) {
-            Location textLoc = baseLoc.clone().add(0.5 + offsetX, itemBaseY + 0.75 + offsetY, 0.5 + offsetZ);
-            text.teleport(textLoc);
-        }
     }
 
     @Override

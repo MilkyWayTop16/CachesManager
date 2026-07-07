@@ -38,7 +38,7 @@ public class KeyMaterialModeHandler implements ChatModeHandler {
         cacheManager.setCacheKeyMaterial(cache, mat.name());
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("key-material", mat.name());
 
         configManager.executeActions(player, "key.material-changed", ph);

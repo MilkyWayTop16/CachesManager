@@ -45,7 +45,7 @@ public class KeyFlagsModeHandler implements ChatModeHandler {
 
             if (!VALID_FLAGS.contains(flag)) {
                 Map<String, String> ph = new HashMap<>();
-                ph.put("name-cache", cache.getDisplayName());
+                ph.put("name-cache", cache.getName());
                 ph.put("flag", flag);
                 configManager.executeActions(player, "key.change-flags.invalid", ph);
                 continue;
@@ -54,13 +54,13 @@ public class KeyFlagsModeHandler implements ChatModeHandler {
             if (isRemove) {
                 if (currentFlags.remove(flag)) {
                     Map<String, String> ph = new HashMap<>();
-                    ph.put("name-cache", cache.getDisplayName());
+                    ph.put("name-cache", cache.getName());
                     ph.put("flag", flag);
                     configManager.executeActions(player, "key.change-flags.removed", ph);
                     anyChange = true;
                 } else {
                     Map<String, String> ph = new HashMap<>();
-                    ph.put("name-cache", cache.getDisplayName());
+                    ph.put("name-cache", cache.getName());
                     ph.put("flag", flag);
                     configManager.executeActions(player, "key.change-flags.not-found", ph);
                 }
@@ -68,13 +68,13 @@ public class KeyFlagsModeHandler implements ChatModeHandler {
                 if (!currentFlags.contains(flag)) {
                     currentFlags.add(flag);
                     Map<String, String> ph = new HashMap<>();
-                    ph.put("name-cache", cache.getDisplayName());
+                    ph.put("name-cache", cache.getName());
                     ph.put("flag", flag);
                     configManager.executeActions(player, "key.change-flags.added", ph);
                     anyChange = true;
                 } else {
                     Map<String, String> ph = new HashMap<>();
-                    ph.put("name-cache", cache.getDisplayName());
+                    ph.put("name-cache", cache.getName());
                     ph.put("flag", flag);
                     configManager.executeActions(player, "key.change-flags.already-exists", ph);
                 }

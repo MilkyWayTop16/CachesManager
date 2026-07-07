@@ -33,7 +33,7 @@ public class StandardCacheOpening implements CacheOpening {
 
         if (!cache.getInUse().compareAndSet(false, true)) {
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
             plugin.getConfigManager().executeActions(player, "cache.in-use", ph);
             return false;
         }
@@ -42,7 +42,7 @@ public class StandardCacheOpening implements CacheOpening {
 
         try {
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
             List<Map.Entry<ItemStack, Integer>> lootWithChances = cache.getLootWithChances();
 
             if (lootWithChances.isEmpty()) {
@@ -67,7 +67,6 @@ public class StandardCacheOpening implements CacheOpening {
             if (plugin.getDatabaseManager() != null) {
                 plugin.getDatabaseManager().saveCacheStatsAsync(cache);
                 plugin.getDatabaseManager().addLootHistoryEntryAsync(cache.getName(), player.getName(), chosenItem);
-                plugin.getDatabaseManager().forceFlushPendingHistory();
             }
 
             if (plugin.getHologramManager() != null) {
@@ -150,7 +149,7 @@ public class StandardCacheOpening implements CacheOpening {
         Cache target = (live != null) ? live : cache;
 
         if (target.isHologramEnabled() && target.getLocation() != null && plugin.getHologramManager() != null) {
-            plugin.getHologramManager().createHologram(target.getName(), target.getLocation(), target.getHologramText());
+            plugin.getHologramManager().createHologram(target.getName(), target.getLocation(), target.getHologramLines());
         }
     }
 
@@ -159,7 +158,7 @@ public class StandardCacheOpening implements CacheOpening {
         if (!running || finished) return;
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
 
         giveLootToPlayer(ph);
 

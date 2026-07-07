@@ -32,10 +32,26 @@ public class LootHistoryManager {
         List<ItemStack> items = new ArrayList<>();
         if (plugin.getDatabaseManager() == null) return items;
 
-
-        plugin.getDatabaseManager().forceFlushPendingHistory();
-
         List<DatabaseManager.HistoryEntry> entries = plugin.getDatabaseManager().getLootHistorySynchronously(cacheName);
+        return buildHistoryItems(entries);
+    }
+
+    public void getHistoryItemsAsync(String cacheName, Consumer<List<ItemStack>> callback) {
+        if (plugin.getDatabaseManager() == null) {
+            callback.accept(new ArrayList<>());
+            return;
+        }
+
+        plugin.getDatabaseManager().getLootHistoryAsync(cacheName).thenAccept(entries -> {
+            List<ItemStack> items = buildHistoryItems(entries);
+            plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(items));
+        });
+    }
+
+    private List<ItemStack> buildHistoryItems(List<DatabaseManager.HistoryEntry> entries) {
+        List<ItemStack> items = new ArrayList<>();
+        if (entries == null || entries.isEmpty()) return items;
+
         FileConfiguration menuCfg = configManager.loadMenuConfig("history-menu.yml");
         List<String> loreTemplate = menuCfg.getStringList("history-item-settings.lore");
 
@@ -48,9 +64,6 @@ public class LootHistoryManager {
             if (currentLore == null) currentLore = new ArrayList<>();
 
             String formattedDate = dateFormatter.format(Instant.ofEpochMilli(entry.getTimestamp()));
-            String displayName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
-                    ? item.getItemMeta().getDisplayName()
-                    : item.getType().name();
 
             for (String line : loreTemplate) {
                 currentLore.add(HexColors.translate(line
@@ -63,48 +76,6 @@ public class LootHistoryManager {
             items.add(item);
         }
         return items;
-    }
-
-    public void getHistoryItemsAsync(String cacheName, Consumer<List<ItemStack>> callback) {
-        if (plugin.getDatabaseManager() == null) {
-            callback.accept(new ArrayList<>());
-            return;
-        }
-
-
-        plugin.getDatabaseManager().forceFlushPendingHistory();
-
-        plugin.getDatabaseManager().getLootHistoryAsync(cacheName).thenAccept(entries -> {
-            FileConfiguration menuCfg = configManager.loadMenuConfig("history-menu.yml");
-            List<String> loreTemplate = menuCfg.getStringList("history-item-settings.lore");
-            List<ItemStack> items = new ArrayList<>();
-
-            for (DatabaseManager.HistoryEntry entry : entries) {
-                ItemStack item = entry.getItem().clone();
-                ItemMeta meta = item.getItemMeta();
-                if (meta == null) continue;
-
-                List<String> currentLore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
-                if (currentLore == null) currentLore = new ArrayList<>();
-
-                String formattedDate = dateFormatter.format(Instant.ofEpochMilli(entry.getTimestamp()));
-                String displayName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
-                        ? item.getItemMeta().getDisplayName()
-                        : item.getType().name();
-
-                for (String line : loreTemplate) {
-                    currentLore.add(HexColors.translate(line
-                            .replace("{dropped-by}", entry.getPlayerName())
-                            .replace("{dropped-at}", formattedDate)));
-                }
-
-                meta.setLore(currentLore);
-                item.setItemMeta(meta);
-                items.add(item);
-            }
-
-            plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(items));
-        });
     }
 
     public void deleteHistory(String cacheName) {

@@ -180,7 +180,7 @@ public class CacheConfigHandler {
                 synchronized (cfg) {
                     cfg.set("cache-name", cacheName);
                     cfg.set("hologram.enabled", true);
-                    cfg.set("hologram.text", "&eТайник " + cacheName);
+                    cfg.set("hologram.text", java.util.Arrays.asList("&eТайник " + cacheName));
                     cfg.set("hologram.offset.x", 0.0);
                     cfg.set("hologram.offset.y", 0.5);
                     cfg.set("hologram.offset.z", 0.0);
@@ -219,7 +219,9 @@ public class CacheConfigHandler {
         FileConfiguration cfg = loadCacheConfig(cacheName);
         if (cfg != null) {
             synchronized (cfg) {
-                cfg.set("hologram.text", hologramText.replace("\\n", "\n"));
+                String normalized = hologramText.replace("\\n", "\n");
+                List<String> lines = java.util.Arrays.asList(normalized.split("\n"));
+                cfg.set("hologram.text", lines);
             }
             saveCacheConfig(cacheName);
         }

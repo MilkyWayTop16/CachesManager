@@ -78,7 +78,9 @@ public class MenuItemBuilder {
     public ItemStack createMenuItem(Player player, ConfigurationSection section, String cacheName,
                                     Map<String, ItemStack> staticItemCache,
                                     Map<String, String> translatedNameCache,
-                                    Map<String, List<String>> translatedLoreCache) {
+                                    Map<String, List<String>> translatedLoreCache,
+                                    Map<String, String> finalColoredNameCache,
+                                    Map<String, List<String>> finalColoredLoreCache) {
         String cacheKey = section.getName() + "|" + cacheName;
         if (staticItemCache.containsKey(cacheKey)) {
             return staticItemCache.get(cacheKey).clone();
@@ -100,25 +102,47 @@ public class MenuItemBuilder {
             }
         }
         Cache cache = plugin.getCacheManager().getCache(cacheName);
+
+        boolean nameHasPapi = false;
+        boolean loreHasPapi = false;
         if (section.contains("display-name")) {
             String nameKey = cacheKey + "|name";
-            String name = translatedNameCache.computeIfAbsent(nameKey, k -> {
+            String cacheApplied = translatedNameCache.computeIfAbsent(nameKey, k -> {
                 String raw = section.getString("display-name");
                 return cache != null ? applyCachePlaceholders(raw, cache) : raw;
             });
-            name = PlaceholderAPIHook.parse(player, name);
-            meta.setDisplayName(HexColors.translate(name));
+            nameHasPapi = cacheApplied.contains("%");
+            String resolved;
+            if (nameHasPapi) {
+                resolved = PlaceholderAPIHook.parse(player, cacheApplied);
+            } else {
+                String finalKey = nameKey + "|final";
+                resolved = finalColoredNameCache.computeIfAbsent(finalKey, k -> PlaceholderAPIHook.parse(player, cacheApplied));
+            }
+            meta.setDisplayName(HexColors.translate(resolved));
         }
+
         if (section.contains("lore")) {
             String loreKey = cacheKey + "|lore";
-            List<String> lore = translatedLoreCache.computeIfAbsent(loreKey, k -> {
+            List<String> cacheAppliedLore = translatedLoreCache.computeIfAbsent(loreKey, k -> {
                 List<String> raw = new ArrayList<>(section.getStringList("lore"));
                 return cache != null ? applyCachePlaceholdersToLore(raw, cache) : raw;
             });
-            List<String> parsedLore = lore.stream()
-                    .map(line -> PlaceholderAPIHook.parse(player, line))
-                    .collect(Collectors.toList());
-            meta.setLore(HexColors.translate(parsedLore));
+            loreHasPapi = cacheAppliedLore.stream().anyMatch(l -> l.contains("%"));
+            List<String> resolvedLore;
+            if (loreHasPapi) {
+                resolvedLore = cacheAppliedLore.stream()
+                        .map(line -> PlaceholderAPIHook.parse(player, line))
+                        .collect(Collectors.toList());
+            } else {
+                String finalLoreKey = loreKey + "|final";
+                resolvedLore = finalColoredLoreCache.computeIfAbsent(finalLoreKey, k ->
+                        cacheAppliedLore.stream()
+                                .map(line -> PlaceholderAPIHook.parse(player, line))
+                                .collect(Collectors.toList())
+                );
+            }
+            meta.setLore(HexColors.translate(resolvedLore));
         }
         if (section.contains("enchantments")) {
             for (String ench : section.getStringList("enchantments")) {
@@ -144,7 +168,10 @@ public class MenuItemBuilder {
             }
         }
         item.setItemMeta(meta);
-        staticItemCache.put(cacheKey, item.clone());
+
+        if (!nameHasPapi && !loreHasPapi) {
+            staticItemCache.put(cacheKey, item.clone());
+        }
         return item;
     }
 
@@ -152,7 +179,7 @@ public class MenuItemBuilder {
         String anim = plugin.getAnimationsManager().getAnimations().containsKey(cache.getAnimation())
                 ? plugin.getAnimationsManager().getAnimations().get(cache.getAnimation()).getName() : "Неизвестная анимация";
         return text
-                .replace("{name-cache}", cache.getDisplayName())
+                .replace("{name-cache}", cache.getName())
                 .replace("{unbreakable-status}", cache.isUnbreakable() ? "Включена" : "Выключена")
                 .replace("{animation-name}", anim)
                 .replace("{hologram-status}", cache.isHologramEnabled() ? "Включена" : "Выключена")
@@ -172,7 +199,7 @@ public class MenuItemBuilder {
                 ? plugin.getAnimationsManager().getAnimations().get(cache.getAnimation()).getName() : "Неизвестная анимация";
         for (String line : lore) {
             String processed = line
-                    .replace("{name-cache}", cache.getDisplayName())
+                    .replace("{name-cache}", cache.getName())
                     .replace("{unbreakable-status}", cache.isUnbreakable() ? "Включена" : "Выключена")
                     .replace("{animation-name}", anim)
                     .replace("{hologram-status}", cache.isHologramEnabled() ? "Включена" : "Выключена")

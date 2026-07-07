@@ -59,7 +59,7 @@ public class CacheManager {
             return;
         }
         removeHologram(cache.getName());
-        hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramText());
+        hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramLines());
     }
 
     private void recreateHologramAfterLocationChange(Cache cache) {
@@ -68,7 +68,7 @@ public class CacheManager {
         removeHologram(cache.getName());
 
         if (cache.getLocation() != null && cache.isHologramEnabled()) {
-            hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramText());
+            hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramLines());
         }
     }
 
@@ -96,11 +96,19 @@ public class CacheManager {
     }
 
     public void setCacheHologramText(Cache cache, String text) {
+        String oldText = cache.getHologramText();
         cache.setHologramText(text);
         configManager.setCacheHologramText(cache.getName(), text);
 
         if (cache.isHologramEnabled() && cache.getLocation() != null && hologramManager != null) {
-            hologramManager.updateHologram(cache.getName(), text);
+            int oldLines = (oldText == null || oldText.isEmpty()) ? 1 : oldText.split("\n").length;
+            int newLines = (text == null || text.isEmpty()) ? 1 : text.split("\n").length;
+            if (oldLines != newLines) {
+                hologramManager.removeCacheHologram(cache.getName());
+                hologramManager.createHologram(cache.getName(), cache.getLocation(), text);
+            } else {
+                hologramManager.updateHologram(cache.getName(), cache.getHologramLines());
+            }
         }
     }
 
@@ -246,7 +254,7 @@ public class CacheManager {
             cache.setInUse(false);
 
             if (hologramManager != null && cache.getLocation() != null && cache.isHologramEnabled()) {
-                hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramText());
+                hologramManager.createHologram(cache.getName(), cache.getLocation(), cache.getHologramLines());
             }
         }
     }

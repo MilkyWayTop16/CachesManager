@@ -42,7 +42,7 @@ public class HologramOffsetModeHandler implements ChatModeHandler {
             }
 
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
             ph.put("offset", String.valueOf(newOffset));
 
             String actionPath = switch (axis) {
@@ -55,7 +55,7 @@ public class HologramOffsetModeHandler implements ChatModeHandler {
             configManager.executeActions(player, actionPath, ph);
 
             if (cache.getLocation() != null && cache.isHologramEnabled() && cacheManager.getHologramManager() != null) {
-                cacheManager.getHologramManager().updateHologram(cache.getName(), cache.getHologramText());
+                cacheManager.getHologramManager().updateHologram(cache.getName(), cache.getHologramLines());
             }
 
             return true;

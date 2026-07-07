@@ -419,9 +419,8 @@ public class DatabaseManager {
     }
 
     public void addLootHistoryEntryAsync(String cacheName, String playerName, ItemStack item) {
-        String itemData = serializeItem(item);
         long timestamp = System.currentTimeMillis();
-        lootHistoryQueue.offer(new HistoryWriteEntry(cacheName, playerName, itemData, timestamp));
+        lootHistoryQueue.offer(new HistoryWriteEntry(cacheName, playerName, item.clone(), timestamp));
         cachesWithRecentHistory.add(cacheName);
     }
 
@@ -472,7 +471,7 @@ public class DatabaseManager {
                 for (HistoryWriteEntry e : batch) {
                     ps.setString(1, e.cacheName);
                     ps.setString(2, e.playerName);
-                    ps.setString(3, e.itemData);
+                    ps.setString(3, serializeItem(e.item));
                     ps.setLong(4, e.timestamp);
                     ps.addBatch();
                 }
@@ -537,7 +536,7 @@ public class DatabaseManager {
 
     public java.util.concurrent.CompletableFuture<List<HistoryEntry>> getLootHistoryAsync(String cacheName) {
         java.util.concurrent.CompletableFuture<List<HistoryEntry>> future = new java.util.concurrent.CompletableFuture<>();
-        databaseExecutor.submit(() -> {
+        submitDatabaseTask(() -> {
             List<HistoryEntry> result = getLootHistorySynchronously(cacheName);
             future.complete(result);
         });
@@ -616,7 +615,7 @@ public class DatabaseManager {
                 for (HistoryWriteEntry e : batch) {
                     ps.setString(1, e.cacheName);
                     ps.setString(2, e.playerName);
-                    ps.setString(3, e.itemData);
+                    ps.setString(3, serializeItem(e.item));
                     ps.setLong(4, e.timestamp);
                     ps.addBatch();
                 }
@@ -1019,13 +1018,13 @@ public class DatabaseManager {
     private static class HistoryWriteEntry {
         final String cacheName;
         final String playerName;
-        final String itemData;
+        final ItemStack item;
         final long timestamp;
 
-        HistoryWriteEntry(String cacheName, String playerName, String itemData, long timestamp) {
+        HistoryWriteEntry(String cacheName, String playerName, ItemStack item, long timestamp) {
             this.cacheName = cacheName;
             this.playerName = playerName;
-            this.itemData = itemData;
+            this.item = item;
             this.timestamp = timestamp;
         }
     }

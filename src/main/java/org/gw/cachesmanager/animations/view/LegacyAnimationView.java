@@ -1,6 +1,9 @@
 package org.gw.cachesmanager.animations.view;
 
 import lombok.Getter;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.EntityType;
@@ -8,7 +11,6 @@ import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.util.EulerAngle;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.animations.Animation;
 import org.gw.cachesmanager.animations.AnimationEngineConfigurator.PacketItemMetadataSender;
@@ -21,14 +23,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LegacyAnimationView implements AnimationView {
 
+    private static final double ITEM_BASE_Y = 0.55;
+    private static final double NAME_OFFSET_Y = 1.05;
+
     private final CachesManager plugin;
     private final PacketItemMetadataSender packetSender;
     @Getter
     private final Map<String, Item> phantomItems = new ConcurrentHashMap<>();
     @Getter
     private final Map<String, ArmorStand> itemHolograms = new ConcurrentHashMap<>();
-    private final Map<String, Location> currentLocations = new ConcurrentHashMap<>();
-    private final Map<String, Float> currentRotation = new ConcurrentHashMap<>();
+    private final Map<String, ArmorStand> mounts = new ConcurrentHashMap<>();
+    private final Map<String, Location> baseLocations = new ConcurrentHashMap<>();
 
     public LegacyAnimationView(CachesManager plugin, PacketItemMetadataSender packetSender) {
         this.plugin = plugin;
@@ -46,75 +51,98 @@ public class LegacyAnimationView implements AnimationView {
         double offsetY = cache != null ? cache.getHologramOffsetY() : 0.0;
         double offsetZ = cache != null ? cache.getHologramOffsetZ() : 0.0;
 
-        if (!hologramsEnabled) {
-            return;
+        if (!hologramsEnabled) return;
+
+        Location baseLoc = location.getBlock().getLocation();
+        baseLocations.put(cacheName, baseLoc.clone());
+
+        Location mountLoc = baseLoc.clone().add(0.5 + offsetX, ITEM_BASE_Y + offsetY, 0.5 + offsetZ);
+        ArmorStand mount = (ArmorStand) baseLoc.getWorld().spawnEntity(mountLoc, EntityType.ARMOR_STAND);
+        mount.setVisible(false);
+        mount.setGravity(false);
+        mount.setMarker(true);
+        mount.setInvulnerable(true);
+        mount.setPersistent(false);
+        mount.getPersistentDataContainer().set(CacheKeys.GHOST.getNamespacedKey(), PersistentDataType.STRING, "true");
+        mounts.put(cacheName, mount);
+
+        Item phantom = (Item) baseLoc.getWorld().spawnEntity(mountLoc, EntityType.DROPPED_ITEM);
+        phantom.setItemStack(item.clone());
+        phantom.setGravity(false);
+        phantom.setPickupDelay(Integer.MAX_VALUE);
+        phantom.setInvulnerable(true);
+        phantom.setPersistent(false);
+        phantom.getPersistentDataContainer().set(CacheKeys.GHOST.getNamespacedKey(), PersistentDataType.STRING, "true");
+        phantomItems.put(cacheName, phantom);
+
+        mount.addPassenger(phantom);
+
+        Location nameLoc = baseLoc.clone().add(0.5 + offsetX, NAME_OFFSET_Y + offsetY, 0.5 + offsetZ);
+        ArmorStand nameStand = (ArmorStand) baseLoc.getWorld().spawnEntity(nameLoc, EntityType.ARMOR_STAND);
+        nameStand.setVisible(false);
+        nameStand.setGravity(false);
+        nameStand.setMarker(true);
+        nameStand.setInvulnerable(true);
+        nameStand.setCanPickupItems(false);
+        nameStand.setPersistent(false);
+        nameStand.getPersistentDataContainer().set(CacheKeys.GHOST.getNamespacedKey(), PersistentDataType.STRING, "true");
+
+        Component displayName = HexColors.getItemNameComponent(item);
+        boolean hasCustomName = item.hasItemMeta() && item.getItemMeta().hasDisplayName();
+        if (plugin.getConfigManager().isTrimHologramItemName() && hasCustomName && displayName instanceof TextComponent) {
+            String legacy = LegacyComponentSerializer.legacySection().serialize(displayName).replaceAll("^\\s+", "");
+            displayName = LegacyComponentSerializer.legacySection().deserialize(legacy);
         }
-
-        double itemBaseY = 0.55;
-        Location spawnLoc = location.clone().add(0.5 + offsetX, itemBaseY + offsetY, 0.5 + offsetZ);
-
-        ArmorStand hologram = (ArmorStand) spawnLoc.getWorld().spawnEntity(spawnLoc, EntityType.ARMOR_STAND);
-        hologram.setGravity(false);
-        hologram.setCanPickupItems(false);
-        hologram.setVisible(false);
-        hologram.setInvulnerable(true);
-        hologram.setMarker(true);
-        hologram.setPersistent(false);
-        hologram.getPersistentDataContainer().set(CacheKeys.GHOST.getNamespacedKey(), PersistentDataType.STRING, "true");
-
-        if (hologram.getEquipment() != null) {
-            hologram.getEquipment().setHelmet(item.clone());
+        try {
+            nameStand.customName(displayName);
+        } catch (Throwable t) {
+            nameStand.setCustomName(LegacyComponentSerializer.legacySection().serialize(displayName));
         }
-
-        String displayName = HexColors.translate(HexColors.getItemNameLegacy(item));
-        if (plugin.getConfigManager().isTrimHologramItemName()) {
-            displayName = displayName.replaceAll("^\\s+", "");
-        }
-        hologram.setCustomName(displayName);
-        hologram.setCustomNameVisible(true);
-
-        itemHolograms.put(cacheName, hologram);
-        currentLocations.put(cacheName, spawnLoc.clone());
-        currentRotation.put(cacheName, 0.0f);
+        nameStand.setCustomNameVisible(true);
+        itemHolograms.put(cacheName, nameStand);
 
         if (packetSender != null) {
-            Collection<? extends Player> nearbyPlayers = spawnLoc.getWorld().getNearbyPlayers(spawnLoc, 48);
+            Collection<? extends Player> nearbyPlayers = nameLoc.getWorld().getNearbyPlayers(nameLoc, 48);
             for (Player p : nearbyPlayers) {
-                packetSender.sendItemHologramMetadata(hologram, p, item);
+                packetSender.sendItemHologramMetadata(nameStand, p, item);
             }
         }
     }
 
     @Override
     public void update(String cacheName, int ticks, Animation animation) {
-        ArmorStand hologram = itemHolograms.get(cacheName);
-        Location baseLoc = currentLocations.get(cacheName);
-        Float yaw = currentRotation.get(cacheName);
+        ArmorStand mount = mounts.get(cacheName);
+        Location baseLoc = baseLocations.get(cacheName);
+        if (mount == null || mount.isDead() || baseLoc == null) return;
 
-        if (hologram == null || baseLoc == null || yaw == null) return;
+        var cache = plugin.getCacheManager().getCache(cacheName);
+        double offsetX = cache != null ? cache.getHologramOffsetX() : 0.0;
+        double offsetY = cache != null ? cache.getHologramOffsetY() : 0.0;
+        double offsetZ = cache != null ? cache.getHologramOffsetZ() : 0.0;
 
-        float newYaw = yaw + (float) animation.getRotationSpeed();
-        currentRotation.put(cacheName, newYaw);
-
-        double speed = animation.getRotationSpeed() * 0.05;
-        double heightOffset = Math.sin(ticks * speed) * 0.15;
-
-        Location updatedLoc = baseLoc.clone().add(0, heightOffset, 0);
-        updatedLoc.setYaw(newYaw);
-
-        hologram.teleport(updatedLoc);
-        hologram.setHeadPose(new EulerAngle(0, Math.toRadians(newYaw), 0));
+        double height = Math.sin(ticks * 0.1) * 0.15;
+        Location loc = baseLoc.clone().add(0.5 + offsetX, ITEM_BASE_Y + offsetY + height, 0.5 + offsetZ);
+        loc.setYaw(ticks * (float) animation.getRotationSpeed());
+        mount.teleport(loc);
     }
 
     @Override
     public void remove(String cacheName) {
-        ArmorStand hologram = itemHolograms.remove(cacheName);
-        if (hologram != null && !hologram.isDead()) {
-            hologram.remove();
+        Item phantom = phantomItems.remove(cacheName);
+        if (phantom != null && !phantom.isDead()) {
+            phantom.remove();
         }
 
-        phantomItems.remove(cacheName);
-        currentLocations.remove(cacheName);
-        currentRotation.remove(cacheName);
+        ArmorStand mount = mounts.remove(cacheName);
+        if (mount != null && !mount.isDead()) {
+            mount.remove();
+        }
+
+        ArmorStand nameStand = itemHolograms.remove(cacheName);
+        if (nameStand != null && !nameStand.isDead()) {
+            nameStand.remove();
+        }
+
+        baseLocations.remove(cacheName);
     }
 }

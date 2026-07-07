@@ -6,6 +6,7 @@ import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -18,16 +19,9 @@ public class ProtocolLibPlatform {
 
     public void sendItemHologramMetadata(ArmorStand armorStand, Player player, ItemStack item) {
         try {
-            WrappedChatComponent component;
-
-            if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-                String legacyName = HexColors.getItemNameLegacy(item);
-                component = WrappedChatComponent.fromLegacyText(HexColors.translate(legacyName));
-            } else {
-                String translationKey = HexColors.getItemTranslationKey(item);
-                String json = "{\"translate\":\"" + translationKey + "\",\"color\":\"white\",\"italic\":false}";
-                component = WrappedChatComponent.fromJson(json);
-            }
+            Component nameComponent = HexColors.getItemNameComponent(item);
+            String json = HexColors.toGsonJsonFromComponent(nameComponent);
+            WrappedChatComponent component = WrappedChatComponent.fromJson(json);
 
             List<WrappedDataValue> dataValues = List.of(
                     new WrappedDataValue(2, WrappedDataWatcher.Registry.getChatComponentSerializer(true), Optional.of(component.getHandle()))

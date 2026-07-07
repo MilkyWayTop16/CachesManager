@@ -17,17 +17,9 @@ public class PacketEventsPlatform {
 
     public void sendItemHologramMetadata(ArmorStand armorStand, Player player, ItemStack item) {
         try {
-            Component nameComponent;
+            Component nameComponent = HexColors.getItemNameComponent(item);
 
-            if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-                nameComponent = Component.text(HexColors.getItemNameLegacy(item));
-            } else {
-                String key = HexColors.getItemTranslationKey(item);
-                nameComponent = Component.translatable(key);
-            }
-
-            String json = HexColors.toGsonJsonFromComponent(nameComponent);
-            List<EntityData> dataList = List.of(new EntityData(2, EntityDataTypes.OPTIONAL_COMPONENT, Optional.of(json)));
+            List<EntityData> dataList = List.of(new EntityData(2, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(nameComponent)));
             var packet = new WrapperPlayServerEntityMetadata(armorStand.getEntityId(), dataList);
             PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
         } catch (Exception ignored) {}

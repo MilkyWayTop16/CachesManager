@@ -101,7 +101,7 @@ public class AnimationRegistry {
                     itemParticles, itemSounds, config.getInt("animations." + key + ".item.duration", 90),
                     config.getDouble("animations." + key + ".item.height", 1.3),
                     config.getDouble("animations." + key + ".item.rotation-speed", 5.0),
-                    finalParticles, finalSounds, Particle.REDSTONE,
+                    finalParticles, finalSounds, resolveAmbientParticle(),
                     config.getInt("animations." + key + ".ambient.particles.amount", 10),
                     config.getDouble("animations." + key + ".ambient.particles.offset-x", 0.5),
                     config.getDouble("animations." + key + ".ambient.particles.offset-y", 0.1),
@@ -165,5 +165,13 @@ public class AnimationRegistry {
         int idx = animationOrder.indexOf(current);
         if (idx <= 0) return animationOrder.get(animationOrder.size() - 1);
         return animationOrder.get(idx - 1);
+    }
+
+    private static Particle resolveAmbientParticle() {
+        try {
+            return Particle.valueOf("DUST");
+        } catch (Exception e) {
+            return Particle.REDSTONE;
+        }
     }
 }

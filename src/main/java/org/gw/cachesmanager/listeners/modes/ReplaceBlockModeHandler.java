@@ -49,7 +49,7 @@ public class ReplaceBlockModeHandler implements ChatModeHandler {
         cacheManager.setCacheBlockType(cache, newBlockType);
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("block-id", newBlockType.name().toLowerCase());
 
         configManager.executeActions(player, "interaction.replace-block.completed", ph);

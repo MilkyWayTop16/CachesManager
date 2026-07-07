@@ -83,7 +83,7 @@ public class MenuClickActionHandler {
         if (cache == null) return;
 
         for (String rawCmd : commands) {
-            String processed = rawCmd.replace("{name-cache}", cache.getDisplayName())
+            String processed = rawCmd.replace("{name-cache}", cache.getName())
                     .replace("{player}", p.getName()).trim();
             processed = PlaceholderAPIHook.parse(p, processed);
 
@@ -96,21 +96,17 @@ public class MenuClickActionHandler {
                     switch (actionTag) {
                         case "[increase-chance]" -> {
                             int delta = extractDelta(processed, 1);
-                            actionHandler.handleChanceChange(p, index, true, delta, holder,
-                                    (name, idx) -> delegate.delegateInitializeCachePageLoot(name),
-                                    idx -> {
-                                        int slot = calculateSlotFromIndex(idx, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize());
-                                        delegate.delegateUpdateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage(), slot);
-                                    });
+                            actionHandler.handleChanceChange(p, index, true, delta, holder);
+                            delegate.delegateInitializeCachePageLoot(cacheName);
+                            int slot = calculateSlotFromIndex(index, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize(), holder);
+                            delegate.delegateUpdateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage(), slot);
                         }
                         case "[reduce-chance]" -> {
                             int delta = extractDelta(processed, 1);
-                            actionHandler.handleChanceChange(p, index, false, delta, holder,
-                                    (name, idx) -> delegate.delegateInitializeCachePageLoot(name),
-                                    idx -> {
-                                        int slot = calculateSlotFromIndex(idx, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize());
-                                        delegate.delegateUpdateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage(), slot);
-                                    });
+                            actionHandler.handleChanceChange(p, index, false, delta, holder);
+                            delegate.delegateInitializeCachePageLoot(cacheName);
+                            int slot = calculateSlotFromIndex(index, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize(), holder);
+                            delegate.delegateUpdateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage(), slot);
                         }
                         case "[open-menu]" -> {
                             delegate.delegateOpenMenu(p, cacheName, rawValue, 1);
@@ -214,8 +210,12 @@ public class MenuClickActionHandler {
         }
     }
 
-    private int calculateSlotFromIndex(int itemIndex, int page, int invSize) {
-        org.bukkit.configuration.file.FileConfiguration cfg = configManager.loadMenuConfig("chance-menu.yml");
+    private int calculateSlotFromIndex(int itemIndex, int page, int invSize, CacheMenuHolder holder) {
+        org.bukkit.configuration.file.FileConfiguration cfg = holder.getMenuConfig();
+        if (cfg == null) {
+            cfg = configManager.loadMenuConfig("chance-menu.yml");
+            holder.setMenuConfig(cfg);
+        }
         if (cfg == null) return 0;
         List<Integer> slots = parseSlotRange(cfg.getStringList("loot.slots"), invSize);
         if (slots.isEmpty()) return 0;

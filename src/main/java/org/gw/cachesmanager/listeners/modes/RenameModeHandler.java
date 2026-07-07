@@ -33,7 +33,7 @@ public class RenameModeHandler implements ChatModeHandler {
         cacheManager.loadCache(cache);
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("old-name", oldDisplayName);
         ph.put("new-name", newDisplayName);
 

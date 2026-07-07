@@ -29,7 +29,7 @@ public class KeyNameModeHandler implements ChatModeHandler {
         cacheManager.setCacheKeyName(cache, message);
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("key-name", message);
 
         configManager.executeActions(player, "key.name-changed", ph);

@@ -92,7 +92,7 @@ public class CacheBlockListener implements Listener {
             }
 
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
 
             if (clickMatches) {
                 if (!player.hasPermission(permission)) {
@@ -142,7 +142,7 @@ public class CacheBlockListener implements Listener {
                         plugin.log("Автоматически сброшено застрявшее состояние isInUse у тайника &#ffff00" + cache.getName());
 
                         if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                            plugin.getHologramManager().createHologram(cache.getName(), cache.getLocation(), cache.getHologramText());
+                            plugin.getHologramManager().createHologram(cache.getName(), cache.getLocation(), cache.getHologramLines());
                         }
                     } else {
                         configManager.executeActions(player, "cache.in-use", ph);
@@ -194,7 +194,7 @@ public class CacheBlockListener implements Listener {
         if (existingCache != null) {
             if (cacheName != null) {
                 event.setCancelled(true);
-                ph.put("name-cache", existingCache.getDisplayName());
+                ph.put("name-cache", existingCache.getName());
                 if (existingCache.getName().equals(cacheName)) {
                     configManager.executeActions(player, "interaction.select-block.same-cache", ph);
                 } else {
@@ -206,13 +206,13 @@ public class CacheBlockListener implements Listener {
             if (existingCache.isUnbreakable()) {
                 event.setCancelled(true);
                 event.setDropItems(false);
-                ph.put("name-cache", existingCache.getDisplayName());
+                ph.put("name-cache", existingCache.getName());
                 configManager.executeActions(player, "cache.break-forbidden", ph);
                 plugin.log("Игрок &#ffff00" + player.getName() + " &fпопытался сломать неразрушимый тайник &#ffff00" + existingCache.getName());
                 return;
             } else {
                 event.setCancelled(false);
-                ph.put("name-cache", existingCache.getDisplayName());
+                ph.put("name-cache", existingCache.getName());
                 configManager.executeActions(player, "cache.deleted", ph);
                 plugin.log("Тайник &#ffff00" + existingCache.getName() + " &fбыл физически разрушен игроком &#ffff00" + player.getName());
                 cacheManager.setCacheLocation(existingCache, null);

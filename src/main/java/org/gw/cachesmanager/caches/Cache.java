@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class Cache {
     @Getter @Setter private String name;
     @Setter private String displayName;
-    @Setter private String hologramText;
+    private List<String> hologramLines = new ArrayList<>();
     @Getter @Setter private Location location;
     @Getter @Setter private Material blockType;
     private final List<Map.Entry<ItemStack, Integer>> lootWithChances = new CopyOnWriteArrayList<>();
@@ -63,8 +63,27 @@ public class Cache {
         return displayName != null ? displayName : name;
     }
 
+    public List<String> getHologramLines() {
+        if (hologramLines == null || hologramLines.isEmpty()) {
+            return Collections.singletonList("&eТайник " + getDisplayName());
+        }
+        return new ArrayList<>(hologramLines);
+    }
+
+    public void setHologramLines(List<String> lines) {
+        this.hologramLines = (lines != null) ? new ArrayList<>(lines) : new ArrayList<>();
+    }
+
     public String getHologramText() {
-        return hologramText != null ? hologramText : "&eТайник " + getDisplayName();
+        return String.join("\n", getHologramLines());
+    }
+
+    public void setHologramText(String text) {
+        if (text == null || text.isEmpty()) {
+            this.hologramLines = new ArrayList<>();
+        } else {
+            this.hologramLines = new ArrayList<>(Arrays.asList(text.split("\n")));
+        }
     }
 
     public List<Map.Entry<ItemStack, Integer>> getLootWithChances() {

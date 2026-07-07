@@ -19,35 +19,33 @@ public class MenuActionHandler {
         this.plugin = plugin;
     }
 
-    public void handleToggleHologram(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handleToggleHologram(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newState = !cache.isHologramEnabled();
         plugin.getCacheManager().setCacheHologramEnabled(cache, newState);
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         plugin.getConfigManager().executeActions(p, newState ? "hologram.toggle-enabled" : "hologram.toggle-disabled", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }
 
-    public void handleToggleUnbreakable(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handleToggleUnbreakable(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newState = !cache.isUnbreakable();
         plugin.getCacheManager().setCacheUnbreakable(cache, newState);
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         plugin.getConfigManager().executeActions(p, newState ? "unbreakable-enabled" : "unbreakable-disabled", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }
 
-    public void handleNextAnimation(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handleNextAnimation(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
@@ -58,15 +56,14 @@ public class MenuActionHandler {
         }
         plugin.getCacheManager().setCacheAnimation(cache, next);
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("animation", plugin.getAnimationsManager().getAnimations().get(next).getName());
         plugin.getConfigManager().executeActions(p, "cache.animation-changed", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }
 
-    public void handlePreviousAnimation(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handlePreviousAnimation(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
@@ -77,16 +74,14 @@ public class MenuActionHandler {
         }
         plugin.getCacheManager().setCacheAnimation(cache, prev);
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("animation", plugin.getAnimationsManager().getAnimations().get(prev).getName());
         plugin.getConfigManager().executeActions(p, "cache.animation-changed", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }
 
-    public void handleChanceChange(Player p, int index, boolean increase, int delta, CacheMenuHolder holder,
-                                   java.util.function.BiConsumer<String, Integer> initializer, java.util.function.Consumer<Integer> individualUpdater) {
+    public void handleChanceChange(Player p, int index, boolean increase, int delta, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null || index < 0 || index >= cache.getLootWithChances().size()) return;
@@ -96,29 +91,26 @@ public class MenuActionHandler {
         plugin.getConfigManager().setItemChance(cacheName, index, newChance);
         loot.set(index, new AbstractMap.SimpleEntry<>(loot.get(index).getKey(), newChance));
         plugin.getCacheManager().setCacheLootWithChances(cache, loot);
-        initializer.accept(cacheName, index);
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         ph.put("chance", String.valueOf(newChance));
         plugin.getConfigManager().executeActions(p, "cache.chance-updated", ph);
-        individualUpdater.accept(index);
     }
 
-    public void handleToggleKeyGlow(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handleToggleKeyGlow(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
         boolean newGlow = !cache.isKeyGlowEnabled();
         plugin.getCacheManager().setCacheKeyGlow(cache, newGlow);
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         plugin.getConfigManager().executeActions(p, newGlow ? "key.glow-enabled" : "key.glow-disabled", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }
 
-    public void handleResetKeyToDefault(Player p, CacheMenuHolder holder, Runnable invalidator) {
+    public void handleResetKeyToDefault(Player p, CacheMenuHolder holder) {
         String cacheName = holder.getCacheName();
         Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null) return;
@@ -129,9 +121,8 @@ public class MenuActionHandler {
         plugin.getCacheManager().setCacheKeyGlow(cache, false);
         plugin.getCacheManager().setCacheKeyFlags(cache, Arrays.asList("HIDE_ENCHANTS", "HIDE_ATTRIBUTES"));
         plugin.getConfigManager().saveCacheConfig(cacheName);
-        invalidator.run();
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         plugin.getConfigManager().executeActions(p, "key.reset-to-default", ph);
         plugin.getMenuManager().updateMenu(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), cacheName, holder.getCurrentPage());
     }

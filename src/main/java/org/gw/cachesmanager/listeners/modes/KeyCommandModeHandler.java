@@ -30,14 +30,14 @@ public class KeyCommandModeHandler implements ChatModeHandler {
             cacheManager.setCacheKeyCustomModelData(cache, cmd);
 
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
             ph.put("key-cmd", String.valueOf(cmd));
             configManager.executeActions(player, "key.cmd-changed", ph);
 
             return true;
         } catch (NumberFormatException e) {
             Map<String, String> ph = new HashMap<>();
-            ph.put("name-cache", cache.getDisplayName());
+            ph.put("name-cache", cache.getName());
             configManager.executeActions(player, "key.change-cmd.invalid", ph);
             return false;
         }

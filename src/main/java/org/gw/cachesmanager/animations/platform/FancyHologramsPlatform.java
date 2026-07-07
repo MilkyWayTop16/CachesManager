@@ -8,7 +8,9 @@ import org.bukkit.Location;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.HexColors;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class FancyHologramsPlatform implements HologramPlatform {
@@ -37,6 +39,12 @@ public class FancyHologramsPlatform implements HologramPlatform {
 
     @Override
     public void createHologram(String id, Location location, String text) {
+        List<String> lines = (text == null || text.isEmpty()) ? new ArrayList<>() : Arrays.asList(text.split("\n"));
+        createHologram(id, location, lines);
+    }
+
+    @Override
+    public void createHologram(String id, Location location, List<String> lines) {
         HologramManager manager = getManager();
         if (manager == null) {
             return;
@@ -49,7 +57,8 @@ public class FancyHologramsPlatform implements HologramPlatform {
             adjusted.setY(adjusted.getY() + FANCY_Y_OFFSET_CORRECTION);
 
             TextHologramData data = new TextHologramData(id, adjusted);
-            data.setText(Arrays.stream(text.split("\n"))
+            List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
+            data.setText(safeLines.stream()
                     .map(HexColors::translate)
                     .collect(Collectors.toList()));
 
@@ -64,6 +73,12 @@ public class FancyHologramsPlatform implements HologramPlatform {
 
     @Override
     public void updateHologram(String id, String text) {
+        List<String> lines = (text == null || text.isEmpty()) ? new ArrayList<>() : Arrays.asList(text.split("\n"));
+        updateHologram(id, lines);
+    }
+
+    @Override
+    public void updateHologram(String id, List<String> lines) {
         HologramManager manager = getManager();
         if (manager == null) {
             return;
@@ -72,7 +87,8 @@ public class FancyHologramsPlatform implements HologramPlatform {
         try {
             Hologram hologram = manager.getHologram(id).orElse(null);
             if (hologram != null && hologram.getData() instanceof TextHologramData data) {
-                data.setText(Arrays.stream(text.split("\n"))
+                List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
+                data.setText(safeLines.stream()
                         .map(HexColors::translate)
                         .collect(Collectors.toList()));
                 hologram.queueUpdate();

@@ -46,6 +46,9 @@ public class MenuManager implements Listener, MenuClickDelegate {
     private final Map<String, ItemStack> staticItemCache = new ConcurrentHashMap<>();
     private final Map<String, String> translatedNameCache = new ConcurrentHashMap<>();
     private final Map<String, List<String>> translatedLoreCache = new ConcurrentHashMap<>();
+    private final Map<String, String> finalColoredNameCache = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> finalColoredLoreCache = new ConcurrentHashMap<>();
+    private int maxLootPages = 5;
 
     public MenuManager(CachesManager plugin, ConfigManager configManager, CacheManager cacheManager,
                        ItemManager itemManager, CacheModeListener cacheModeListener,
@@ -74,6 +77,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         initSpecialHandlers();
+        reloadMaxLootPages();
     }
 
     private void initSpecialHandlers() {
@@ -84,7 +88,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
         registerSpecialAction("[change-hologram-text]", (p, i) -> enableMode(p, cacheModeListener::enableHologramTextMode));
         registerSpecialAction("[toggle-unbreakable]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handleToggleUnbreakable(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handleToggleUnbreakable(p, holder);
             }
         });
         registerSpecialAction("[update-menu]", this::handleUpdateMenu);
@@ -92,19 +96,19 @@ public class MenuManager implements Listener, MenuClickDelegate {
         registerSpecialAction("[previous-page]", this::handlePreviousPage);
         registerSpecialAction("[next-animation]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handleNextAnimation(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handleNextAnimation(p, holder);
             }
         });
         registerSpecialAction("[last-animation]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handlePreviousAnimation(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handlePreviousAnimation(p, holder);
             }
         });
         registerSpecialAction("[increase-chance]", this::handleIncreaseChance);
         registerSpecialAction("[reduce-chance]", this::handleReduceChance);
         registerSpecialAction("[toggle-hologram]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handleToggleHologram(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handleToggleHologram(p, holder);
             }
         });
         registerSpecialAction("[hologram-offset-x]", (p, i) -> enableMode(p, cacheModeListener::enableHologramOffsetXMode));
@@ -116,12 +120,12 @@ public class MenuManager implements Listener, MenuClickDelegate {
         registerSpecialAction("[change-key-cmd]", this::handleChangeKeyCMD);
         registerSpecialAction("[toggle-key-glow]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handleToggleKeyGlow(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handleToggleKeyGlow(p, holder);
             }
         });
         registerSpecialAction("[reset-key-to-default]", (p, i) -> {
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-                actionHandler.handleResetKeyToDefault(p, holder, () -> invalidateStaticCache(holder.getCacheName()));
+                actionHandler.handleResetKeyToDefault(p, holder);
             }
         });
         registerSpecialAction("[change-flags]", this::handleChangeKeyFlags);
@@ -151,16 +155,17 @@ public class MenuManager implements Listener, MenuClickDelegate {
         if (menuConfig == null) return;
         int size = menuConfig.getInt("menu.size", 54);
         if (size % 9 != 0 || size < 9 || size > 54) size = 54;
-        int maxPages = configManager.loadMenuConfig("loot-menu.yml").getInt("menu.max-pages", 5);
+        int maxPages = maxLootPages;
         page = Math.max(1, Math.min(page, maxPages));
         String titleRaw = menuConfig.getString("menu.title", "")
-                .replace("{name-cache}", getCacheDisplayName(cacheName))
+                .replace("{name-cache}", cacheName)
                 .replace("{current-page}", String.valueOf(page))
                 .replace("{max-pages}", String.valueOf(maxPages));
         titleRaw = PlaceholderAPIHook.parse(player, titleRaw);
         String title = HexColors.translate(titleRaw);
 
         CacheMenuHolder holder = new CacheMenuHolder(menuFile, cacheName, page);
+        holder.setMenuConfig(menuConfig);
         Inventory inventory = Bukkit.createInventory(holder, size, title);
         holder.setInventory(inventory);
 
@@ -182,7 +187,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
                         cancel();
                         return;
                     }
-                    updateMenu(player, inventory, menuFile, cacheName, finalPage);
+                    updateMenuPeriodic(player, inventory, menuFile, cacheName, finalPage);
                 }
             }.runTaskTimer(plugin, 0L, updateInterval);
         }
@@ -190,11 +195,6 @@ public class MenuManager implements Listener, MenuClickDelegate {
 
     public void openMenu(Player player, String cacheName, String menuFile) {
         openMenu(player, cacheName, menuFile, 1);
-    }
-
-    private String getCacheDisplayName(String cacheName) {
-        Cache cache = cacheManager.getCache(cacheName);
-        return cache != null ? cache.getDisplayName() : cacheName;
     }
 
     private void fillMenuItems(Player player, Inventory inventory, FileConfiguration menuConfig, String cacheName, String menuFile) {
@@ -231,7 +231,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
                     continue;
                 }
             }
-            ItemStack item = itemBuilder.createMenuItem(player, section, cacheName, staticItemCache, translatedNameCache, translatedLoreCache);
+            ItemStack item = itemBuilder.createMenuItem(player, section, cacheName, staticItemCache, translatedNameCache, translatedLoreCache, finalColoredNameCache, finalColoredLoreCache);
             if (section.contains("slot")) {
                 int slot = section.getInt("slot");
                 if (slot >= 0 && slot < inventory.getSize() && !lootSlots.contains(slot)) {
@@ -257,6 +257,32 @@ public class MenuManager implements Listener, MenuClickDelegate {
             lootManager.fillHistoryItemsAsync(player, inventory, cacheName, page, slots);
         } else {
             lootManager.fillLootItems(player, inventory, cfg, cacheName, page, menuFile, cachePageLoot, slots);
+        }
+    }
+
+    private void updateMenuPeriodic(Player player, Inventory inventory, String menuFile, String cacheName, int page) {
+        FileConfiguration cfg = configManager.loadMenuConfig(menuFile);
+        if (cfg == null) return;
+        invalidateDynamicItems(cfg, cacheName);
+        fillMenuItems(player, inventory, cfg, cacheName, menuFile);
+        if (!"history-menu.yml".equals(menuFile)) {
+            List<Integer> slots = parseSlotRange(cfg.getStringList("loot.slots"), inventory.getSize());
+            lootManager.fillLootItems(player, inventory, cfg, cacheName, page, menuFile, cachePageLoot, slots);
+        }
+    }
+
+    private void invalidateDynamicItems(FileConfiguration cfg, String cacheName) {
+        ConfigurationSection itemsSection = cfg.getConfigurationSection("items");
+        if (itemsSection == null) return;
+        for (String key : itemsSection.getKeys(false)) {
+            ConfigurationSection section = itemsSection.getConfigurationSection(key);
+            if (section == null || !section.getBoolean("update", false)) continue;
+            String cacheKey = key + "|" + cacheName;
+            staticItemCache.remove(cacheKey);
+            translatedNameCache.remove(cacheKey + "|name");
+            translatedLoreCache.remove(cacheKey + "|lore");
+            finalColoredNameCache.remove(cacheKey + "|name|final");
+            finalColoredLoreCache.remove(cacheKey + "|lore|final");
         }
     }
 
@@ -287,7 +313,11 @@ public class MenuManager implements Listener, MenuClickDelegate {
         String menuFile = holder.getMenuFile();
         String cacheName = holder.getCacheName();
         int page = holder.getCurrentPage();
-        FileConfiguration cfg = configManager.loadMenuConfig(menuFile);
+        FileConfiguration cfg = holder.getMenuConfig();
+        if (cfg == null) {
+            cfg = configManager.loadMenuConfig(menuFile);
+            holder.setMenuConfig(cfg);
+        }
         if (cfg == null) return;
         List<Integer> lootSlots = parseSlotRange(cfg.getStringList("loot.slots"), event.getInventory().getSize());
         boolean isLootMenu = "loot-menu.yml".equals(menuFile);
@@ -296,7 +326,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
         if (!clickedTop) {
             if (isLootMenu) {
                 event.setCancelled(false);
-                Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, event.getView().getTopInventory()), 1L);
+                scheduleLootCacheUpdate(cacheName, page, event.getView().getTopInventory());
             } else {
                 event.setCancelled(true);
             }
@@ -318,7 +348,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
                     click == ClickType.MIDDLE ||
                     click == ClickType.SWAP_OFFHAND) {
                 event.setCancelled(false);
-                Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, event.getInventory()), 1L);
+                scheduleLootCacheUpdate(cacheName, page, event.getInventory());
                 return;
             }
             event.setCancelled(true);
@@ -376,19 +406,21 @@ public class MenuManager implements Listener, MenuClickDelegate {
 
     private void handleIncreaseChance(Player p, int index) {
         if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-            actionHandler.handleChanceChange(p, index, true, 1, holder, (name, idx) -> initializeCachePageLoot(name), idx -> {
-                int slot = calculateSlotFromIndex(idx, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize());
-                updateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), holder.getCacheName(), holder.getCurrentPage(), slot);
-            });
+            actionHandler.handleChanceChange(p, index, true, 1, holder);
+            initializeCachePageLoot(holder.getCacheName());
+            FileConfiguration cfg = holder.getMenuConfig();
+            int slot = calculateSlotFromIndex(index, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize(), cfg);
+            updateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), holder.getCacheName(), holder.getCurrentPage(), slot);
         }
     }
 
     private void handleReduceChance(Player p, int index) {
         if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-            actionHandler.handleChanceChange(p, index, false, 1, holder, (name, idx) -> initializeCachePageLoot(name), idx -> {
-                int slot = calculateSlotFromIndex(idx, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize());
-                updateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), holder.getCacheName(), holder.getCurrentPage(), slot);
-            });
+            actionHandler.handleChanceChange(p, index, false, 1, holder);
+            initializeCachePageLoot(holder.getCacheName());
+            FileConfiguration cfg = holder.getMenuConfig();
+            int slot = calculateSlotFromIndex(index, holder.getCurrentPage(), p.getOpenInventory().getTopInventory().getSize(), cfg);
+            updateSingleItem(p, p.getOpenInventory().getTopInventory(), holder.getMenuFile(), holder.getCacheName(), holder.getCurrentPage(), slot);
         }
     }
 
@@ -400,7 +432,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
 
     private void handleNextPage(Player p, int idx) {
         if (p.getOpenInventory().getTopInventory().getHolder() instanceof CacheMenuHolder holder) {
-            int max = configManager.loadMenuConfig("loot-menu.yml").getInt("menu.max-pages", 5);
+            int max = maxLootPages;
             if (holder.getCurrentPage() < max) openMenu(p, holder.getCacheName(), holder.getMenuFile(), holder.getCurrentPage() + 1);
         }
     }
@@ -497,6 +529,8 @@ public class MenuManager implements Listener, MenuClickDelegate {
         staticItemCache.keySet().removeIf(key -> key.contains("|" + cacheName));
         translatedNameCache.keySet().removeIf(key -> key.contains("|" + cacheName));
         translatedLoreCache.keySet().removeIf(key -> key.contains("|" + cacheName));
+        finalColoredNameCache.keySet().removeIf(key -> key.contains("|" + cacheName));
+        finalColoredLoreCache.keySet().removeIf(key -> key.contains("|" + cacheName));
     }
 
     private void updatePageLootCache(String cacheName, int page, Inventory inventory) {
@@ -513,16 +547,30 @@ public class MenuManager implements Listener, MenuClickDelegate {
         cachePageLoot.computeIfAbsent(cacheName, k -> new HashMap<>()).put(page, currentLoot);
     }
 
+    private void scheduleLootCacheUpdate(String cacheName, int page, Inventory inventory) {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> updatePageLootCache(cacheName, page, inventory), 1L);
+    }
+
     public void reload() {
         slotRangeCache.clear();
         cachePageLoot.clear();
         staticItemCache.clear();
         translatedNameCache.clear();
         translatedLoreCache.clear();
+        finalColoredNameCache.clear();
+        finalColoredLoreCache.clear();
+        reloadMaxLootPages();
         for (String name : cacheManager.getCacheNames()) {
             initializeCachePageLoot(name);
         }
         plugin.log("Системы меню успешно перезагружены!");
+    }
+
+    private void reloadMaxLootPages() {
+        FileConfiguration lootCfg = configManager.loadMenuConfig("loot-menu.yml");
+        if (lootCfg != null) {
+            maxLootPages = lootCfg.getInt("menu.max-pages", 5);
+        }
     }
 
     public void closeAllMenus() {
@@ -580,8 +628,7 @@ public class MenuManager implements Listener, MenuClickDelegate {
         return slots;
     }
 
-    private int calculateSlotFromIndex(int itemIndex, int page, int invSize) {
-        FileConfiguration cfg = configManager.loadMenuConfig("chance-menu.yml");
+    private int calculateSlotFromIndex(int itemIndex, int page, int invSize, FileConfiguration cfg) {
         if (cfg == null) return 0;
         List<Integer> slots = parseSlotRange(cfg.getStringList("loot.slots"), invSize);
         if (slots.isEmpty()) return 0;

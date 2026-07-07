@@ -31,7 +31,7 @@ public class KeyLoreModeHandler implements ChatModeHandler {
         cacheManager.setCacheKeyLore(cache, lines);
 
         Map<String, String> ph = new HashMap<>();
-        ph.put("name-cache", cache.getDisplayName());
+        ph.put("name-cache", cache.getName());
         configManager.executeActions(player, "key.lore-changed", ph);
 
         return true;

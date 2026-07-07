@@ -17,7 +17,8 @@ public class AnimationEngineConfigurator {
 
     public static PacketItemMetadataSender selectPacketPlatform() {
         try {
-            if (Bukkit.getPluginManager().isPluginEnabled("PacketEvents")) {
+            if (Bukkit.getPluginManager().isPluginEnabled("packetevents")
+                    || Bukkit.getPluginManager().isPluginEnabled("PacketEvents")) {
                 PacketEventsPlatform impl = new PacketEventsPlatform();
                 return impl::sendItemHologramMetadata;
             }
