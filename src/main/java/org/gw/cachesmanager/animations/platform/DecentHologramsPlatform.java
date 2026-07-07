@@ -31,7 +31,7 @@ public class DecentHologramsPlatform implements HologramPlatform {
             DHAPI.createHologram(id, location, safeLines);
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.error("Ошибка создания голограммы через DecentHolograms (айди: " + id + ")");
+                plugin.error("Ошибка создания голограммы через плагин DecentHolograms (айди: " + id + ")");
             }
         }
     }
@@ -52,7 +52,7 @@ public class DecentHologramsPlatform implements HologramPlatform {
             }
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.error("Ошибка обновления голограммы через DecentHolograms (айди: " + id + ")");
+                plugin.error("Ошибка обновления голограммы через плагин DecentHolograms (айди: " + id + ")");
             }
         }
     }
@@ -66,7 +66,7 @@ public class DecentHologramsPlatform implements HologramPlatform {
             }
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.log("Ошибка удаления голограммы через DecentHolograms (айди: " + id + "): " + t.getMessage());
+                plugin.log("Ошибка удаления голограммы через плагин DecentHolograms (айди: " + id + "): " + t.getMessage());
             }
         }
     }

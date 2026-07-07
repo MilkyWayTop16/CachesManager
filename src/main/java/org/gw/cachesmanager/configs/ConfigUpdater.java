@@ -47,7 +47,6 @@ public class ConfigUpdater {
         if (changed) {
             saveConfig(targetFile, userConfig, "Конфиг " + targetFile.getName() + " обновлён");
         } else {
-            // version bump only
             saveConfig(targetFile, userConfig, "Версия конфига " + targetFile.getName() + " обновлена до " + defaultConfig.getString("config-version", "1.0"));
         }
     }

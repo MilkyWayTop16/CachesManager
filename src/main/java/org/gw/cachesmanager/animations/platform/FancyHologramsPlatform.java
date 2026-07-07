@@ -31,7 +31,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
             return FancyHologramsPlugin.get().getHologramManager();
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.error("Не удалось получить HologramManager от FancyHolograms: " + t.getMessage());
+                plugin.error("Не удалось получить функцию голограмм от плагина FancyHolograms: " + t.getMessage() + "...");
             }
             return null;
         }
@@ -66,7 +66,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
             manager.addHologram(hologram);
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.error("Ошибка создания голограммы через FancyHolograms (айди: " + id + ")");
+                plugin.error("Ошибка создания голограммы через плагин FancyHolograms (айди: " + id + ")");
             }
         }
     }
@@ -95,7 +95,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
             }
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.error("Ошибка обновления голограммы через FancyHolograms (айди: " + id + ")");
+                plugin.error("Ошибка обновления голограммы через плагин FancyHolograms (айди: " + id + ")");
             }
         }
     }
@@ -111,7 +111,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
             manager.getHologram(id).ifPresent(manager::removeHologram);
         } catch (Throwable t) {
             if (plugin != null) {
-                plugin.log("Ошибка удаления голограммы через FancyHolograms (айди: " + id + "): " + t.getMessage());
+                plugin.log("Ошибка удаления голограммы через плагин FancyHolograms (айди: " + id + "): " + t.getMessage());
             }
         }
     }

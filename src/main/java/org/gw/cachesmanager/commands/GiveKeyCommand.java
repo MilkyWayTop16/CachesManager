@@ -107,7 +107,7 @@ public class GiveKeyCommand extends AbstractSubCommand {
         }
 
         if (target == null) {
-            ph.put("player", targetName != null ? targetName : "Unknown");
+            ph.put("player", targetName != null ? targetName : "Неизвестно");
             plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-player", ph);
             return true;
         }

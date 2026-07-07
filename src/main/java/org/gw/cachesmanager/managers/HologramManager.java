@@ -48,7 +48,6 @@ public class HologramManager implements Listener {
         } else if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms") && !"FancyHolograms".equals(disablingPlugin)) {
             newPlatform = new FancyHologramsPlatform(plugin);
         } else {
-            // Only try modern platform if the server supports TextDisplay (1.19.4+)
             boolean supportsModern = false;
             try {
                 Class.forName("org.bukkit.entity.TextDisplay");

@@ -196,14 +196,14 @@ public class AnimationExecutor {
                 if (player.getInventory().firstEmpty() == -1) {
                     player.getWorld().dropItemNaturally(player.getLocation(), item);
                     plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
-                    plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю");
+                    plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю...");
                 } else {
                     player.getInventory().addItem(item);
                     plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан в инвентарь игрока &#ffff00" + player.getName());
                 }
             } else if (player != null) {
                 pendingLoot.put(player.getUniqueId(), item);
-                plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания");
+                plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания...");
             } else {
                 plugin.log("Анимация тайника &#ffff00" + cacheName + " &fзавершена, но игрок, открывший тайник не найден, так что предмет потерян...");
             }
@@ -369,7 +369,7 @@ public class AnimationExecutor {
 
         if (hasNearbyPlayers) {
             makeAnimationOrphaned(cacheName, player.getUniqueId());
-            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпродолжена для зрителей");
+            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпродолжена для игроков, находящихся рядом");
         } else {
             forceFinishAnimationForPlayerInternal(cacheName, player);
         }
