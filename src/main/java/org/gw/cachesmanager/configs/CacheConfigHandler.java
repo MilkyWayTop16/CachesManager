@@ -269,6 +269,10 @@ public class CacheConfigHandler {
                 }
                 meta.setCustomModelData(cacheConfig.getInt("key.custom-model-data", 0));
                 meta.getPersistentDataContainer().set(CacheKeys.CACHE_NAME.getNamespacedKey(), PersistentDataType.STRING, cacheName);
+                String keyUuid = getKeyUuid(cacheName);
+                if (keyUuid != null && !keyUuid.isEmpty()) {
+                    meta.getPersistentDataContainer().set(CacheKeys.KEY_UUID.getNamespacedKey(), PersistentDataType.STRING, keyUuid);
+                }
                 key.setItemMeta(meta);
             }
             return key;

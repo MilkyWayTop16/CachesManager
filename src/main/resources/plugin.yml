@@ -1,5 +1,5 @@
 name: CachesManager
-version: 1.4
+version: 1.4.1
 main: org.gw.cachesmanager.CachesManager
 author: [vkusniy_milkyway]
 api-version: 1.16

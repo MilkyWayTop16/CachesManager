@@ -128,12 +128,14 @@ public class CachesManager extends JavaPlugin {
 
         CacheBlockListener cacheBlockListener = new CacheBlockListener(this, cacheManager, itemManager, menuManager, configManager);
         this.confirmDeleteListener = new ConfirmDeleteListener(this);
+        KeyIntegrityListener keyIntegrityListener = new KeyIntegrityListener(this, itemManager);
 
         getServer().getPluginManager().registerEvents(this.confirmDeleteListener, this);
         cacheModeListener.setMenuManager(menuManager);
         getServer().getPluginManager().registerEvents(animationsManager, this);
         getServer().getPluginManager().registerEvents(cacheModeListener, this);
         getServer().getPluginManager().registerEvents(cacheBlockListener, this);
+        getServer().getPluginManager().registerEvents(keyIntegrityListener, this);
         getServer().getPluginManager().registerEvents(updateChecker, this);
     }
 
