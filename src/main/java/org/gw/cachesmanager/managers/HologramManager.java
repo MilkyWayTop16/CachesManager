@@ -12,6 +12,7 @@ import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.animations.platform.DecentHologramsPlatform;
 import org.gw.cachesmanager.animations.platform.FancyHologramsPlatform;
+import org.gw.cachesmanager.animations.platform.FancyHologramsReflectiveBridge;
 import org.gw.cachesmanager.animations.platform.HologramPlatform;
 import org.gw.cachesmanager.animations.platform.LegacyMinecraftPlatform;
 
@@ -43,11 +44,18 @@ public class HologramManager implements Listener {
 
         HologramPlatform newPlatform;
 
+        boolean fancyEnabled = Bukkit.getPluginManager().isPluginEnabled("FancyHolograms") && !"FancyHolograms".equals(disablingPlugin);
+
         if (Bukkit.getPluginManager().isPluginEnabled("DecentHolograms") && !"DecentHolograms".equals(disablingPlugin)) {
             newPlatform = new DecentHologramsPlatform(plugin);
-        } else if (Bukkit.getPluginManager().isPluginEnabled("FancyHolograms") && !"FancyHolograms".equals(disablingPlugin)) {
+        } else if (fancyEnabled && FancyHologramsReflectiveBridge.isAvailable()) {
             newPlatform = new FancyHologramsPlatform(plugin);
         } else {
+            if (fancyEnabled) {
+                plugin.error("Установленная версия плагина FancyHolograms несовместима с движком голограмм (" +
+                        FancyHologramsReflectiveBridge.getFailureReason() + "). Используется встроенная платформа голограмм...");
+            }
+
             boolean supportsModern = false;
             try {
                 Class.forName("org.bukkit.entity.TextDisplay");

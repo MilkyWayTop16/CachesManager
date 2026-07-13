@@ -47,7 +47,7 @@ public class AnimationExecutor {
         try {
             dp = Particle.valueOf("DUST");
         } catch (Exception e) {
-            dp = Particle.REDSTONE;
+            dp = Particle.valueOf("REDSTONE");
         }
         this.dustParticle = dp;
         startCentralTask();
@@ -765,15 +765,24 @@ public class AnimationExecutor {
     private void spawnParticleSafely(World world, Particle particle, Location loc, int amount, double offsetX, double offsetY, double offsetZ, double speed, ItemStack data, Color color, float size) {
         if (world == null || loc == null) return;
 
-        Particle effectiveParticle = (particle == Particle.REDSTONE) ? dustParticle : particle;
+        Particle effectiveParticle = "REDSTONE".equals(particle.name()) ? dustParticle : particle;
+        Class<?> dataType = effectiveParticle.getDataType();
 
-        if (color != null && (effectiveParticle == dustParticle || particle == Particle.REDSTONE)) {
-            world.spawnParticle(effectiveParticle, loc, amount, offsetX, offsetY, offsetZ, speed, new Particle.DustOptions(color, size));
-        } else if (particle.getDataType() == ItemStack.class && data != null) {
-            world.spawnParticle(particle, loc, amount, offsetX, offsetY, offsetZ, speed, data);
-        } else {
-            world.spawnParticle(particle, loc, amount, offsetX, offsetY, offsetZ, speed);
-        }
+        try {
+            if (dataType == Particle.DustOptions.class) {
+                Color dustColor = color != null ? color : Color.WHITE;
+                float dustSize = size > 0 ? size : 1.0f;
+                world.spawnParticle(effectiveParticle, loc, amount, offsetX, offsetY, offsetZ, speed, new Particle.DustOptions(dustColor, dustSize));
+            } else if (dataType == ItemStack.class) {
+                if (data != null) {
+                    world.spawnParticle(effectiveParticle, loc, amount, offsetX, offsetY, offsetZ, speed, data);
+                }
+            } else if (dataType == Color.class) {
+                world.spawnParticle(effectiveParticle, loc, amount, offsetX, offsetY, offsetZ, speed, color != null ? color : Color.WHITE);
+            } else if (dataType == Void.class) {
+                world.spawnParticle(effectiveParticle, loc, amount, offsetX, offsetY, offsetZ, speed);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void spawnAmbientParticles(Location baseLocation, Animation animation) {

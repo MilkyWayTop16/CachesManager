@@ -118,13 +118,75 @@ public class AnimationRegistry {
         plugin.log("Успшено &#ffff00зарегистрировано &fконфигураций уникальных эффектов и анимаций: &#ffff00" + animations.size());
     }
 
+    private static final Map<String, String> PARTICLE_RENAMES = Map.ofEntries(
+            Map.entry("REDSTONE", "DUST"),
+            Map.entry("SPELL", "EFFECT"),
+            Map.entry("SPELL_INSTANT", "INSTANT_EFFECT"),
+            Map.entry("SPELL_MOB", "ENTITY_EFFECT"),
+            Map.entry("SPELL_WITCH", "WITCH"),
+            Map.entry("EXPLOSION_NORMAL", "POOF"),
+            Map.entry("EXPLOSION_LARGE", "EXPLOSION"),
+            Map.entry("EXPLOSION_HUGE", "EXPLOSION_EMITTER"),
+            Map.entry("FIREWORKS_SPARK", "FIREWORK"),
+            Map.entry("ITEM_CRACK", "ITEM"),
+            Map.entry("BLOCK_CRACK", "BLOCK"),
+            Map.entry("BLOCK_DUST", "BLOCK"),
+            Map.entry("SMOKE_NORMAL", "SMOKE"),
+            Map.entry("SMOKE_LARGE", "LARGE_SMOKE"),
+            Map.entry("ENCHANTMENT_TABLE", "ENCHANT"),
+            Map.entry("TOTEM", "TOTEM_OF_UNDYING"),
+            Map.entry("TOWN_AURA", "MYCELIUM"),
+            Map.entry("VILLAGER_ANGRY", "ANGRY_VILLAGER"),
+            Map.entry("VILLAGER_HAPPY", "HAPPY_VILLAGER"),
+            Map.entry("WATER_BUBBLE", "BUBBLE"),
+            Map.entry("WATER_SPLASH", "SPLASH"),
+            Map.entry("WATER_WAKE", "FISHING"),
+            Map.entry("WATER_DROP", "RAIN"),
+            Map.entry("SUSPENDED", "UNDERWATER"),
+            Map.entry("DRIP_WATER", "DRIPPING_WATER"),
+            Map.entry("DRIP_LAVA", "DRIPPING_LAVA"),
+            Map.entry("SLIME", "ITEM_SLIME"),
+            Map.entry("SNOWBALL", "ITEM_SNOWBALL"),
+            Map.entry("SNOW_SHOVEL", "ITEM_SNOWBALL"),
+            Map.entry("MOB_APPEARANCE", "ELDER_GUARDIAN")
+    );
+
+    private Particle resolveParticleType(String rawName) {
+        if (rawName == null) return null;
+        String name = rawName.trim().toUpperCase();
+
+        try {
+            return Particle.valueOf(name);
+        } catch (IllegalArgumentException ignored) {}
+
+        String renamed = PARTICLE_RENAMES.get(name);
+        if (renamed != null) {
+            try {
+                return Particle.valueOf(renamed);
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        for (Map.Entry<String, String> entry : PARTICLE_RENAMES.entrySet()) {
+            if (entry.getValue().equals(name)) {
+                try {
+                    return Particle.valueOf(entry.getKey());
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
+        plugin.error("Частица &#FB8808" + rawName + " &fне найдена на этой версии сервера и будет пропущена...");
+        return null;
+    }
+
     private List<Animation.ParticleEntry> parseParticles(FileConfiguration config, String path) {
         List<Animation.ParticleEntry> list = new ArrayList<>();
         if (config.isList(path)) {
             for (Map<?, ?> map : config.getMapList(path)) {
                 try {
+                    Particle type = resolveParticleType((String) map.get("type"));
+                    if (type == null) continue;
                     list.add(new Animation.ParticleEntry(
-                            Particle.valueOf((String) map.get("type")),
+                            type,
                             map.containsKey("amount") ? ((Number) map.get("amount")).intValue() : 25,
                             map.containsKey("offset-x") ? ((Number) map.get("offset-x")).doubleValue() : 0.3,
                             map.containsKey("offset-y") ? ((Number) map.get("offset-y")).doubleValue() : 0.3,
@@ -171,7 +233,7 @@ public class AnimationRegistry {
         try {
             return Particle.valueOf("DUST");
         } catch (Exception e) {
-            return Particle.REDSTONE;
+            return Particle.valueOf("REDSTONE");
         }
     }
 }

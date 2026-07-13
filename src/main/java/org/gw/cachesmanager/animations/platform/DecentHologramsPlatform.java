@@ -28,7 +28,7 @@ public class DecentHologramsPlatform implements HologramPlatform {
         try {
             deleteHologram(id);
             List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
-            DHAPI.createHologram(id, location, safeLines);
+            DHAPI.createHologram(id, location, false, safeLines);
         } catch (Throwable t) {
             if (plugin != null) {
                 plugin.error("Ошибка создания голограммы через плагин DecentHolograms (айди: " + id + ")");
@@ -60,10 +60,7 @@ public class DecentHologramsPlatform implements HologramPlatform {
     @Override
     public void deleteHologram(String id) {
         try {
-            Hologram hologram = DHAPI.getHologram(id);
-            if (hologram != null) {
-                hologram.delete();
-            }
+            DHAPI.removeHologram(id);
         } catch (Throwable t) {
             if (plugin != null) {
                 plugin.log("Ошибка удаления голограммы через плагин DecentHolograms (айди: " + id + "): " + t.getMessage());

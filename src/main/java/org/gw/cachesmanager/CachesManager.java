@@ -70,11 +70,10 @@ public class CachesManager extends JavaPlugin {
                 || Bukkit.getPluginManager().isPluginEnabled("packetevents");
 
         if (!hasPacketLib) {
-            error("Не найдена библиотека пакетов (ProtocolLib или PacketEvents) для работы движка...");
-            return false;
+            error("Библиотека пакетов (&#FF5D00ProtocolLib &fили &#FF5D00PacketEvents&f) не найдена, так что плагин &#FF5D00продолжит работу&f, но на версиях сервера &#FF5D00ниже 1.19.4 &fназвания предметов над анимацией &#FF5D00не будут переводиться &fна язык клиента...");
+        } else {
+            console("&#00FF5A◆ CachesManager &f| Зависимости &#00FF5Aуспешно &fподключены!");
         }
-
-        console("&#00FF5A◆ CachesManager &f| Зависимости &#00FF5Aуспешно &fподключены!");
         return true;
     }
 
