@@ -1,6 +1,0 @@
-# Excludes for codebase-memory-mcp indexing
-.idea/
-target/
-reference/
-references/
-.claude/
