@@ -7,6 +7,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.utils.HexColors;
+import org.gw.cachesmanager.utils.MaterialCompat;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -29,8 +30,7 @@ public class StatsManager {
         if (cache == null) return new ItemStack(Material.BOOK);
 
         FileConfiguration menuCfg = configManager.loadMenuConfig("stats-menu.yml");
-        Material material = Material.matchMaterial(menuCfg.getString("items.records.material", "CLOCK").toUpperCase());
-        if (material == null) material = Material.CLOCK;
+        Material material = MaterialCompat.match(menuCfg.getString("items.records.material", "CLOCK"), Material.CLOCK);
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -62,8 +62,7 @@ public class StatsManager {
         if (cache == null) return new ItemStack(Material.BOOK);
 
         FileConfiguration menuCfg = configManager.loadMenuConfig("stats-menu.yml");
-        Material material = Material.matchMaterial(menuCfg.getString("items.general-stats.material", "ENCHANTED_BOOK").toUpperCase());
-        if (material == null) material = Material.ENCHANTED_BOOK;
+        Material material = MaterialCompat.match(menuCfg.getString("items.general-stats.material", "ENCHANTED_BOOK"), Material.ENCHANTED_BOOK);
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -100,8 +99,7 @@ public class StatsManager {
         if (cache == null) return new ItemStack(Material.PLAYER_HEAD);
 
         FileConfiguration menuCfg = configManager.loadMenuConfig("stats-menu.yml");
-        Material material = Material.matchMaterial(menuCfg.getString("items.top-players.material", "PLAYER_HEAD").toUpperCase());
-        if (material == null) material = Material.PLAYER_HEAD;
+        Material material = MaterialCompat.match(menuCfg.getString("items.top-players.material", "PLAYER_HEAD"), Material.PLAYER_HEAD);
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();

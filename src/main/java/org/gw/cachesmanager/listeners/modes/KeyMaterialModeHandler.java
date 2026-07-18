@@ -6,6 +6,7 @@ import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.managers.ConfigManager;
 import org.gw.cachesmanager.listeners.modes.PlayerMode;
+import org.gw.cachesmanager.utils.MaterialCompat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +28,7 @@ public class KeyMaterialModeHandler implements ChatModeHandler {
 
     @Override
     public boolean handleChat(Player player, Cache cache, ChatEditSession session, String message) {
-        Material mat = Material.matchMaterial(message.toUpperCase());
+        Material mat = MaterialCompat.match(message, null);
         if (mat == null) {
             Map<String, String> ph = new HashMap<>();
             ph.put("material", message);

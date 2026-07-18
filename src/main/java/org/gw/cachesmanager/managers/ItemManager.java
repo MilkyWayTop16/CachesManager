@@ -1,9 +1,9 @@
 package org.gw.cachesmanager.managers;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -12,13 +12,15 @@ import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.CacheKeys;
 import org.gw.cachesmanager.utils.HexColors;
+import org.gw.cachesmanager.utils.MaterialCompat;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Objects;
 
 public class ItemManager {
+    public static final int MAX_KEYS_PER_GIVE = 2304;
+
     private final CachesManager plugin;
 
     public ItemManager(CachesManager plugin) {
@@ -34,80 +36,87 @@ public class ItemManager {
         String pdcUuid = getPdcString(item, CacheKeys.KEY_UUID);
         String correctUuid = plugin.getConfigManager().getKeyUuid(cacheName);
 
-        if (pdcName != null
-                && pdcName.equals(cacheName)
-                && pdcUuid != null
-                && correctUuid != null
-                && pdcUuid.equals(correctUuid)) {
+        if (pdcName != null && !pdcName.isEmpty()) {
+            if (!pdcName.equals(cacheName)) {
+                return false;
+            }
+            if (pdcUuid != null && !pdcUuid.isEmpty()) {
+                return correctUuid != null && !correctUuid.isEmpty() && pdcUuid.equals(correctUuid);
+            }
             return true;
         }
 
-        if (pdcName != null
-                && pdcName.equals(cacheName)
-                && pdcUuid != null
-                && !pdcUuid.isEmpty()
-                && correctUuid != null
-                && !pdcUuid.equals(correctUuid)) {
-            return false;
-        }
-
-        if (!matchesKeyAppearance(item, cacheName)) {
-            return false;
-        }
-
-        stampKeyData(item, cacheName);
-        return true;
+        return matchesKeyAppearance(item, cacheName);
     }
 
     public boolean isAnyKey(ItemStack item) {
         if (!isValidItem(item)) {
             return false;
         }
-
         String pdcName = getPdcString(item, CacheKeys.CACHE_NAME);
-        if (pdcName != null && !pdcName.isEmpty()) {
-            String pdcUuid = getPdcString(item, CacheKeys.KEY_UUID);
-            String correctUuid = plugin.getConfigManager().getKeyUuid(pdcName);
-            if (pdcUuid != null && correctUuid != null && pdcUuid.equals(correctUuid)) {
-                return true;
-            }
-            if (pdcUuid != null && !pdcUuid.isEmpty() && correctUuid != null && !pdcUuid.equals(correctUuid)) {
-                return true;
-            }
-            if (matchesKeyAppearance(item, pdcName)) {
-                stampKeyData(item, pdcName);
-                return true;
-            }
-            return true;
-        }
-
-        if (plugin.getCacheManager() == null) {
-            return false;
-        }
-
-        for (String cacheName : plugin.getCacheManager().getCacheNames()) {
-            if (matchesKeyAppearance(item, cacheName)) {
-                stampKeyData(item, cacheName);
-                return true;
-            }
-        }
-
-        return false;
+        return pdcName != null && !pdcName.isEmpty();
     }
 
     public void giveKey(Player player, String cacheName, int amount) {
-        FileConfiguration cacheConfig = plugin.getConfigManager().loadCacheConfig(cacheName);
-        if (cacheConfig == null) return;
-
-        ItemStack key = plugin.getConfigManager().getKeyItem(cacheName, cacheConfig);
-        stampKeyData(key, cacheName);
-        key.setAmount(Math.max(1, amount));
-
-        if (player.getInventory().firstEmpty() == -1) {
-            player.getWorld().dropItem(player.getLocation(), key);
-        } else {
-            player.getInventory().addItem(key);
+        if (player == null || cacheName == null || cacheName.isEmpty()) {
+            return;
         }
+
+        FileConfiguration cacheConfig = plugin.getConfigManager().loadCacheConfig(cacheName);
+        if (cacheConfig == null) {
+            return;
+        }
+
+        int remaining = Math.min(Math.max(1, amount), MAX_KEYS_PER_GIVE);
+        while (remaining > 0) {
+            ItemStack key = plugin.getConfigManager().getKeyItem(cacheName, cacheConfig);
+            stampKeyData(key, cacheName);
+
+            int stackSize = Math.max(1, key.getMaxStackSize());
+            int give = Math.min(remaining, stackSize);
+            key.setAmount(give);
+            remaining -= give;
+
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(key);
+            if (!leftover.isEmpty() && player.getWorld() != null) {
+                for (ItemStack drop : leftover.values()) {
+                    if (drop != null && drop.getType() != Material.AIR && drop.getAmount() > 0) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean consumeKey(Player player, EquipmentSlot hand, String cacheName) {
+        if (player == null || hand == null || cacheName == null || cacheName.isEmpty()) {
+            return false;
+        }
+
+        PlayerInventory inventory = player.getInventory();
+        ItemStack stack = hand == EquipmentSlot.OFF_HAND
+                ? inventory.getItemInOffHand()
+                : inventory.getItemInMainHand();
+
+        if (!isKey(stack, cacheName)) {
+            return false;
+        }
+
+        stampKeyData(stack, cacheName);
+
+        if (stack.getAmount() > 1) {
+            stack.setAmount(stack.getAmount() - 1);
+            if (hand == EquipmentSlot.OFF_HAND) {
+                inventory.setItemInOffHand(stack);
+            } else {
+                inventory.setItemInMainHand(stack);
+            }
+        } else if (hand == EquipmentSlot.OFF_HAND) {
+            inventory.setItemInOffHand(null);
+        } else {
+            inventory.setItemInMainHand(null);
+        }
+        return true;
     }
 
     public void stampKeyData(ItemStack item, String cacheName) {
@@ -131,101 +140,18 @@ public class ItemManager {
         item.setItemMeta(meta);
     }
 
-    public int repairKeysInInventory(Player player) {
-        if (player == null || plugin.getCacheManager() == null) {
-            return 0;
-        }
-
-        int repaired = 0;
-        PlayerInventory inventory = player.getInventory();
-
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (repairKeyStack(stack)) {
-                inventory.setItem(slot, stack);
-                repaired++;
-            }
-        }
-
-        ItemStack cursor = player.getItemOnCursor();
-        if (repairKeyStack(cursor)) {
-            player.setItemOnCursor(cursor);
-            repaired++;
-        }
-
-        return repaired;
-    }
-
-    public boolean repairKeyStack(ItemStack item) {
-        if (!isValidItem(item) || plugin.getCacheManager() == null) {
-            return false;
-        }
-
-        String pdcName = getPdcString(item, CacheKeys.CACHE_NAME);
-        String pdcUuid = getPdcString(item, CacheKeys.KEY_UUID);
-
-        if (pdcName != null && !pdcName.isEmpty()) {
-            String correctUuid = plugin.getConfigManager().getKeyUuid(pdcName);
-            if (correctUuid != null && correctUuid.equals(pdcUuid)) {
-                return false;
-            }
-            if (pdcUuid != null && !pdcUuid.isEmpty() && correctUuid != null && !pdcUuid.equals(correctUuid)) {
-                return false;
-            }
-            if (matchesKeyAppearance(item, pdcName) || pdcUuid == null || pdcUuid.isEmpty()) {
-                stampKeyData(item, pdcName);
-                return true;
-            }
-            return false;
-        }
-
-        for (String cacheName : plugin.getCacheManager().getCacheNames()) {
-            if (matchesKeyAppearance(item, cacheName)) {
-                stampKeyData(item, cacheName);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public boolean matchesKeyAppearance(ItemStack item, String cacheName) {
         if (!isValidItem(item) || cacheName == null || cacheName.isEmpty()) {
             return false;
         }
 
-        FileConfiguration cacheConfig = plugin.getConfigManager().loadCacheConfig(cacheName);
-        if (cacheConfig == null) {
+        FileConfiguration cfg = plugin.getConfigManager().loadCacheConfig(cacheName);
+        if (cfg == null) {
             return false;
         }
 
-        Material expectedMaterial;
-        String expectedName;
-        List<String> expectedLore;
-        int expectedCmd;
-
-        synchronized (cacheConfig) {
-            expectedMaterial = Material.matchMaterial(cacheConfig.getString("key.material", "TRIPWIRE_HOOK"));
-            if (expectedMaterial == null) {
-                expectedMaterial = Material.TRIPWIRE_HOOK;
-            }
-
-            expectedName = HexColors.translate(
-                    cacheConfig.getString("key.name", "&eКлюч от тайника " + cacheName)
-                            .replace("{name-cache}", cacheName)
-            );
-
-            List<String> lore = cacheConfig.getStringList("key.lore");
-            expectedLore = HexColors.translate(
-                    lore.stream()
-                            .map(line -> line.replace("{name-cache}", cacheName))
-                            .collect(Collectors.toList())
-            );
-
-            expectedCmd = cacheConfig.getInt("key.custom-model-data", 0);
-        }
-
-        if (item.getType() != expectedMaterial) {
+        Material expected = MaterialCompat.match(cfg.getString("key.material", "TRIPWIRE_HOOK"), Material.TRIPWIRE_HOOK);
+        if (item.getType() != expected) {
             return false;
         }
 
@@ -234,20 +160,29 @@ public class ItemManager {
             return false;
         }
 
+        int expectedCmd = cfg.getInt("key.custom-model-data", 0);
+        int actualCmd = 0;
+        try {
+            if (meta.hasCustomModelData()) {
+                actualCmd = meta.getCustomModelData();
+            }
+        } catch (Throwable ignored) {
+        }
+        if (expectedCmd != actualCmd) {
+            return false;
+        }
+
+        String expectedName = HexColors.translate(
+                cfg.getString("key.name", "&eКлюч от тайника " + cacheName).replace("{name-cache}", cacheName));
         String actualName = meta.hasDisplayName() ? meta.getDisplayName() : "";
-        if (!normalizeText(expectedName).equals(normalizeText(actualName))) {
+        if (!Objects.equals(expectedName, actualName)) {
             return false;
         }
 
-        List<String> actualLore = meta.hasLore() && meta.getLore() != null
-                ? meta.getLore()
-                : Collections.emptyList();
-        if (!normalizeLore(expectedLore).equals(normalizeLore(actualLore))) {
-            return false;
-        }
-
-        int actualCmd = meta.hasCustomModelData() ? meta.getCustomModelData() : 0;
-        return expectedCmd == actualCmd;
+        List<String> expectedLore = HexColors.translate(
+                cfg.getStringList("key.lore").stream().map(s -> s.replace("{name-cache}", cacheName)).toList());
+        List<String> actualLore = meta.hasLore() && meta.getLore() != null ? meta.getLore() : List.of();
+        return expectedLore.equals(actualLore);
     }
 
     private boolean isValidItem(ItemStack item) {
@@ -263,23 +198,5 @@ public class ItemManager {
             return null;
         }
         return meta.getPersistentDataContainer().get(key.getNamespacedKey(), PersistentDataType.STRING);
-    }
-
-    private String normalizeText(String text) {
-        if (text == null || text.isEmpty()) {
-            return "";
-        }
-        return ChatColor.stripColor(text).trim();
-    }
-
-    private List<String> normalizeLore(List<String> lore) {
-        if (lore == null || lore.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<String> result = new ArrayList<>(lore.size());
-        for (String line : lore) {
-            result.add(normalizeText(line));
-        }
-        return result;
     }
 }

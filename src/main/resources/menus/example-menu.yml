@@ -10,9 +10,14 @@
 #                             Мне будет очень приятно :)
 #
 
+# Версия конфигурации плагина
+# (Ни в коем случае не трогать данный параметр!)
+# Этот файл — справочник: при обновлении плагина полностью заменяется на версию из jar.
+config-version: 1.5
+
 # menu:
 #   title: Заголовок меню, отображаемый вверху инвентаря
-#   Поддерживает цветовые коды (&), HEX-цвета (например, &#FFFF00) и плейсхолдеры:
+#   Поддерживает цветовые коды (&), HEX-цвета (например, &#FFFF00), MiniMessage (только с версии 1.17+) и плейсхолдеры:
 #   {name-cache} - отображаемое имя тайника
 #   {current-page} - текущая страница меню
 #   {max-pages} - максимальное количество страниц
@@ -20,24 +25,57 @@
 #   size: Размер инвентаря (должен быть кратен 9: 9, 18, 27, 36, 45 или 54)
 #   size: 54
 #   update-interval: Интервал обновления меню в тиках (20 тиков = 1 секунда)
-#   Если 0, обновление отключено. Используется для динамического обновления предметов.
+#   Если установлено "0", то обновление отключено
 #   update-interval: 20
-#   max-pages: Максимальное количество страниц для пагинации
+#   max-pages: Максимальное количество страниц для пагинации (loot/chance/history)
 #   max-pages: 5
-#   loot:
-#     slots: Слоты для отображения лута тайника (используется в loot-menu.yml и chance-menu.yml)
-#     Поддерживает отдельные слоты (например, "9") или диапазоны (например, "9-17")
-#     slots:
-#       - 9-17
-#       - 18-26
+#   interaction: (обычно только для "global-menu.yml", именно, как открывать меню по клику на блок тайника)
+#     click-type: Тип клика по блоку тайника
+#       # Доступно:
+#       # shift-right — Пкм + Шифт
+#       # shift-left — Лкм + Шифт
+#       # left — Лкм
+#       # right — Пкм
+#     click-type: shift-right
+#     permission: Право на открытие этого меню (например, cachesmanager.openmenu.global-menu)
+#     permission: cachesmanager.openmenu.global-menu
+
+# loot:
+#   slots: Слоты для отображения лута и истории (loot-menu.yml, chance-menu.yml, history-menu.yml)
+#   Поддерживает отдельные слоты (например, "9") или диапазоны (например, "9-17")
+#   slots:
+#     - 9-17
+#     - 18-26
+
+# loot-item-settings: (chance-menu.yml / loot-menu.yml)
+#   Настройки отображения и кликов по предметам лута в слотах loot.slots
+#   lore: Дополнительные строки лора (поверх предмета), поддерживают {chance}%
+#   lore:
+#     - " "
+#     - " &#FFFF00◆ &fШанс выпадения: &#FFFF00{chance}%"
+#     - " "
+#   right-click-commands / left-click-commands / shift-right-click-commands / shift-left-click-commands:
+#     - "[increase-chance] 1"
+#     - "[reduce-chance] 1"
+#     - "[increase-chance] 10"
+#     - "[reduce-chance] 10"
+#     - "[sound] BLOCK_LEVER_CLICK 1 1"
+
+# history-item-settings: (history-menu.yml)
+#   lore: Дополнительные строки лора для записей истории
+#   Поддерживает {dropped-by}, {dropped-at}
+#   lore:
+#     - " "
+#     - " &#FFFF00◆ &fВыбит игроком: &#FFFF00{dropped-by}"
+#     - " &#FFFF00◆ &fДата и время: &#FFFF00{dropped-at}"
+#     - " "
 
 # items:
-# Уникальный идентификатор предмета (например, select-block). Используйте любые названия, но без пробелов
+# Уникальный идентификатор предмета (например, "select-block")
 # select-block:
-#   material: Материал предмета (используйте названия из Minecraft, например, DIAMOND_SWORD, CHEST, STONE)
-#   Полный список материалов: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html
+#   material: Материал предмета (https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html)
 #   material: DIAMOND_PICKAXE
-#   slot: Слот, в котором размещается предмет (от 0 до size-1)
+#   slot: Слот, в котором размещается предмет (от "0" до "size-1")
 #   Используйте, если предмет должен быть в одном слоте
 #   slot: 12
 #   slots: Список слотов или диапазонов для размещения предмета (например, ["0-8", "10", "12-15"])
@@ -47,11 +85,11 @@
 #     - 9
 #     - 36-44
 #   display-name: Название предмета, отображаемое в игре
-#   Поддерживает цветовые коды и плейсхолдеры {name-cache}, {unbreakable-status}
+#   Поддерживает цветовые коды и плейсхолдеры
 #   display-name: '          &#FFFF00▶ &fВыбрать блок тайника'
 #   (Если в "material" указать "PLAYER_HEAD", то можно указать айди головы, например: value: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmE4YTBmNzQ1N2IyMjZjNjg2ZjVjODUwOWNkZTk4ZTZmMDQ1MzkwNDFmMjM5NDM3OTUzNzllY2NmY2YwNjFhYSJ9fX0=")
 #   lore: Описание предмета (многострочный текст)
-#   Поддерживает цветовые коды и плейсхолдеры {name-cache}, {unbreakable-status}
+#   Поддерживает цветовые коды и плейсхолдеры
 #   lore:
 #     - ''
 #     - '   &#FFFF00◆ &fНажмите, чтобы &#FFFF00перейти &fв режим'
@@ -59,9 +97,8 @@
 #     - ''
 #   update: Нужно ли обновлять предмет при каждом update-interval (true/false)
 #   update: false
-#   enchantments: Список зачарований в формате "НАЗВАНИЕ;УРОВЕНЬ"
+#   enchantments: Список зачарований в формате "название;уровень" (https://hub.spigotmc.org/javadocs/spigot/org/bukkit/enchantments/Enchantment.html)
 #   Пример: DURABILITY;3, PROTECTION_ENVIRONMENTAL;2
-#   Полный список зачарований: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/enchantments/Enchantment.html
 #   enchantments:
 #     - DURABILITY;1
 #     - DAMAGE_ALL;3
@@ -70,19 +107,36 @@
 #   flags:
 #     - HIDE_ENCHANTS
 #     - HIDE_ATTRIBUTES
-#   custom-model-data: Целое число для кастомной модели предмета (если используются ресурспаки)
+#   custom-model-data: Целое число для кастомной модели предмета (если используются ресурспаке)
 #   custom-model-data: 100
 #   amount: Количество предметов в стеке (по умолчанию 1)
 #   amount: 1
-#   click-commands: Список команд, выполняемых при клике по предмету
+#   glow: Добавить свечение предмету (true/false)
+#   glow: false
+#   unbreakable: Сделать предмет неразрушимым (true/false)
+#   unbreakable: false
+#
+#   # Команды по типу клика
+#   # Если для типа клика список пуст, то используется "click-commands"
+#   click-commands: Список команд при любом клике
+#   left-click-commands: Только ЛКМ
+#   right-click-commands: Только ПКМ
+#   shift-left-click-commands: Шифт + ЛКМ
+#   shift-right-click-commands: Шифт + ПКМ
+#
 #   Поддерживаемые команды:
 #     - [message] <текст> - Отправляет сообщение игроку
+#     - [message-console] <текст> - Пишет сообщение в консоль
+#     - [broadcast] <текст> - Сообщение всем игрокам на сервере
 #     - [sound] <звук> <громкость> <тон> - Воспроизводит звук (например, BLOCK_LEVER_CLICK 1 1)
 #     - [title] <текст> <время появления> <время отображения> <время исчезновения> - Показывает заголовок
 #     - [subtitle] <текст> <время появления> <время отображения> <время исчезновения> - Показывает подзаголовок
 #     - [actionbar] <текст> - Показывает сообщение в action bar
 #     - [console-command] <команда> - Выполняет команду от имени консоли
 #     - [player-command] <команда> - Выполняет команду от имени игрока
+#     - [effect] <эффект> [секунды] [уровень] - Выдаёт эффект зелья (например, SPEED 10 1)
+#     - [teleport] <x> <y> <z> <мир> - Телепортирует игрока
+#     - [give-item] <материал> <количество> - Выдаёт предмет в инвентарь
 #     - [open-menu] <имя_файла> - Открывает другое меню (например, loot-menu.yml)
 #     - [close-menu] - Закрывает текущее меню
 #     - [update-menu] - Обновляет текущее меню
@@ -90,6 +144,7 @@
 #     - [rename-cache] - Активирует режим переименования тайника
 #     - [replace-block-cache] - Активирует режим замены блока тайника
 #     - [change-hologram-text] - Активирует режим изменения текста голограммы
+#     - [toggle-hologram] - Включает/выключает голограмму тайника
 #     - [toggle-unbreakable] - Переключает неразрушимость тайника
 #     - [next-page] - Переходит на следующую страницу меню
 #     - [previous-page] - Переходит на предыдущую страницу меню
@@ -106,14 +161,21 @@
 #     - [next-animation] - Переключает на следующую анимацию
 #     - [last-animation] - Переключает на предыдущую анимацию
 #     - [open-stats] - Открывает меню статистики тайника
+#     - [increase-chance] [число] - Увеличивает шанс предмета лута (по умолчанию 1; для chance-menu)
+#     - [reduce-chance] [число] - Уменьшает шанс предмета лута (по умолчанию 1; для chance-menu)
 #   click-commands:
 #     - '[message] &aВы нажали на предмет!'
+#     - '[message-console] &eИгрок {player} нажал в меню {name-cache}'
+#     - '[broadcast] &e{player} настроил тайник {name-cache}'
 #     - '[sound] BLOCK_LEVER_CLICK 1 1'
 #     - '[title] &aДействие выполнено 10 70 20'
 #     - '[subtitle] &7Для тайника {name-cache} 10 70 20'
 #     - '[actionbar] &aДействие выполнено для {name-cache}'
 #     - '[console-command] say Действие выполнено для {name-cache}'
 #     - '[player-command] me нажал на предмет в меню'
+#     - '[effect] SPEED 5 1'
+#     - '[teleport] 0 64 0 world'
+#     - '[give-item] DIAMOND 1'
 #     - '[open-menu] loot-menu.yml'
 #     - '[close-menu]'
 #     - '[update-menu]'
@@ -121,6 +183,95 @@
 #     - '[rename-cache]'
 #     - '[replace-block-cache]'
 #     - '[change-hologram-text]'
+#     - '[toggle-hologram]'
 #     - '[toggle-unbreakable]'
 #     - '[next-page]'
 #     - '[previous-page]'
+#     - '[change-key-material]'
+#     - '[change-key-name]'
+#     - '[change-key-lore]'
+#     - '[change-key-cmd]'
+#     - '[toggle-key-glow]'
+#     - '[reset-key-to-default]'
+#     - '[change-flags]'
+#     - '[hologram-offset-x]'
+#     - '[hologram-offset-y]'
+#     - '[hologram-offset-z]'
+#     - '[next-animation]'
+#     - '[last-animation]'
+#     - '[open-stats]'
+#     - '[increase-chance] 1'
+#     - '[reduce-chance] 1'
+#   left-click-commands:
+#     - '[last-animation]'
+#     - '[sound] BLOCK_LEVER_CLICK 1 1'
+#   right-click-commands:
+#     - '[next-animation]'
+#     - '[sound] BLOCK_LEVER_CLICK 1 1'
+#   shift-left-click-commands:
+#     - '[reduce-chance] 10'
+#   shift-right-click-commands:
+#     - '[increase-chance] 10'
+
+# Плейсхолдеры в display-name / lore / title
+# Общие:
+#   {name-cache}              — имя тайника
+#   {player}                  — ник кликнувшего (в click-commands)
+#   {current-page}            — текущая страница
+#   {max-pages}               — максимум страниц
+#   {unbreakable-status}      — Включена / Выключена (неразрушимость)
+#   {animation-name}          — текущая анимация
+# Голограмма:
+#   {hologram-status}         — Включена / Выключена
+#   {hologram-offset-x}       — смещение по оси X
+#   {hologram-offset-y}       — смещение по оси Y
+#   {hologram-offset-z}       — смещение по оси Z
+# Ключ:
+#   {key-name}                — название ключа
+#   {key-material}            — материал ключа
+#   {key-lore}                — лор ключа (разворачивается в несколько строк)
+#   {key-glow-status}         — Включено / Выключено
+#   {key-cmd}                 — Custom Model Data
+#   {key-flags}               — флаги ключа
+# Лут / шансы:
+#   {chance}                  — шанс предмета (%)
+# История:
+#   {dropped-by}              — ник игрока
+#   {dropped-at}              — дата/время выпадения
+# Статистика (stats-menu.yml):
+#   {cache-opens-total}       — всего открытий
+#   {cache-opens-7d}          — открытий за 7 дней
+#   {cache-opens-per-day-avg} — среднее открытий в день
+#   {cache-avg-opens-per-player} — среднее открытий на игрока
+#   {cache-peak-hour}         — пиковый час
+#   {created-date}            — дата создания
+#   {first-opened}            — первое открытие
+#   {last-opened}             — последнее открытие
+#   {longest-drought}         — самый длинный перерыв
+#   {shortest-interval}       — самый короткий интервал
+#   {most-active-day}         — самый активный день
+#   {rank} {player} {count}   — строка топа игроков
+# Также поддерживаются плейсхолдеры PlaceholderAPI (%...%), если плагин установлен.
+
+# Пример полноценного предмета (можно скопировать)
+# items:
+#   example-button:
+#     material: BLAZE_POWDER
+#     slot: 31
+#     display-name: '       &#FFFF00▶ &fСменить анимацию'
+#     lore:
+#       - ''
+#       - "  &f(&#FFFF00Пкм&f) - &#FFFF00Следующая &fанимация  "
+#       - "  &f(&#FFFF00Лкм&f) - &#FFFF00Предыдущая &fанимация  "
+#       - ''
+#       - '        &#FFFF00◆ &fТекущая: &#FFFF00{animation-name}'
+#       - ''
+#     update: true
+#     flags:
+#       - HIDE_ATTRIBUTES
+#     left-click-commands:
+#       - '[last-animation]'
+#       - '[sound] BLOCK_LEVER_CLICK 1 1'
+#     right-click-commands:
+#       - '[next-animation]'
+#       - '[sound] BLOCK_LEVER_CLICK 1 1'

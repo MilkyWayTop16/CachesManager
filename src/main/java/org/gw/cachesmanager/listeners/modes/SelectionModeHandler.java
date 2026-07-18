@@ -56,13 +56,8 @@ public class SelectionModeHandler implements ChatModeHandler {
         }
 
         String blockId = parts[4];
-        Material blockType;
-        try {
-            blockType = Material.valueOf(blockId.toUpperCase());
-            if (!blockType.isBlock()) {
-                throw new IllegalArgumentException();
-            }
-        } catch (Exception e) {
+        Material blockType = org.gw.cachesmanager.utils.MaterialCompat.match(blockId, null);
+        if (blockType == null || !blockType.isBlock()) {
             ph.put("block-id", blockId);
             configManager.executeActions(player, "interaction.select-block.invalid-block", ph);
             return false;

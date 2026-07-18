@@ -59,8 +59,9 @@ public class ReloadCommand extends AbstractSubCommand {
                 new BukkitRunnable() {
                     @Override
                     public void run() {
-                        plugin.getCacheManager().loadCaches();
-                        if (plugin.getMenuManager() != null) plugin.getMenuManager().reload();
+                        plugin.getCacheManager().loadCaches(() -> {
+                            if (plugin.getMenuManager() != null) plugin.getMenuManager().reload();
+                        });
                     }
                 }.runTask(plugin);
                 path = "reload.configs";
@@ -92,7 +93,7 @@ public class ReloadCommand extends AbstractSubCommand {
 
         plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, path, ph);
 
-        if (plugin.getMenuManager() != null) {
+        if ("animations".equals(mode) && plugin.getMenuManager() != null) {
             plugin.getMenuManager().refreshOpenMenus();
         }
 

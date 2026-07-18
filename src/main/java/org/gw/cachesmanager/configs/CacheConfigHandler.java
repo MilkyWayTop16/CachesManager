@@ -147,30 +147,6 @@ public class CacheConfigHandler {
         plugin.log("Успешно подгружено конфигураций тайников в кэш памяти: &#ffff00" + cacheConfigs.size());
     }
 
-    public boolean renameCacheConfig(String oldName, String newName) {
-        File oldFile = new File(cachesFolder, oldName + ".yml");
-        File newFile = new File(cachesFolder, newName + ".yml");
-        if (!oldFile.exists() || newFile.exists()) {
-            plugin.error("Не удалось переименовать файл конфигурации тайника, целевой файл уже существует или исходный отсутствует...");
-            return false;
-        }
-        if (!oldFile.renameTo(newFile)) {
-            plugin.error("Не удалось переименовать файл конфигурации тайника на уровне файловой системы...");
-            return false;
-        }
-        FileConfiguration cfg = loadCacheConfig(newName);
-        if (cfg == null) return false;
-        synchronized (cfg) {
-            cfg.set("cache-name", newName);
-            cfg.set("key.name", "&eКлюч от тайника " + newName);
-            cfg.set("key.lore", Arrays.asList("&7Для тайника: " + newName, "&7Одноразовый предмет"));
-        }
-        saveCacheConfig(newName);
-        cacheConfigs.remove(oldName);
-        dirtyCacheNames.remove(oldName);
-        return true;
-    }
-
     public void createCacheConfig(String cacheName) {
         File file = new File(cachesFolder, cacheName + ".yml");
         if (!file.exists()) {
@@ -248,8 +224,8 @@ public class CacheConfigHandler {
     public ItemStack getKeyItem(String cacheName, FileConfiguration cacheConfig) {
         if (cacheConfig == null) return new ItemStack(Material.TRIPWIRE_HOOK);
         synchronized (cacheConfig) {
-            Material material = Material.matchMaterial(cacheConfig.getString("key.material", "TRIPWIRE_HOOK"));
-            if (material == null) material = Material.TRIPWIRE_HOOK;
+            Material material = org.gw.cachesmanager.utils.MaterialCompat.match(
+                    cacheConfig.getString("key.material", "TRIPWIRE_HOOK"), Material.TRIPWIRE_HOOK);
             ItemStack key = new ItemStack(material);
             ItemMeta meta = key.getItemMeta();
             if (meta != null) {
@@ -321,11 +297,7 @@ public class CacheConfigHandler {
         synchronized (cfg) {
             String blockType = cfg.getString("block-type");
             if (blockType == null) return null;
-            try {
-                return Material.valueOf(blockType.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return null;
-            }
+            return org.gw.cachesmanager.utils.MaterialCompat.match(blockType, null);
         }
     }
 

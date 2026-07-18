@@ -4,7 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class MenuCommand extends AbstractSubCommand {
@@ -36,22 +36,27 @@ public class MenuCommand extends AbstractSubCommand {
         }
 
         Player player = (Player) sender;
-        String cacheName;
+        List<String> cacheNames = plugin.getCacheManager().getCacheNames();
         String menuFile = "global-menu.yml";
+        String cacheName;
 
-        String lastArg = args[args.length - 1];
-        if (lastArg.toLowerCase().endsWith(".yml")) {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1)).trim();
-            menuFile = lastArg;
+        int nameEnd = CacheCommandArgs.findFullNameEnd(cacheNames, args, 1, args.length);
+        if (nameEnd != -1) {
+            cacheName = CacheCommandArgs.resolveExistingName(cacheNames, CacheCommandArgs.join(args, 1, nameEnd));
+            if (nameEnd < args.length) {
+                String last = args[args.length - 1];
+                menuFile = last.toLowerCase().endsWith(".yml") ? last : last + ".yml";
+            }
         } else {
-            String fullJoined = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-            if (plugin.getCacheManager().getCache(plugin.getConfigManager().sanitizeCacheName(fullJoined)) != null) {
-                cacheName = fullJoined;
+            String lastArg = args[args.length - 1];
+            if (lastArg.toLowerCase().endsWith(".yml") && args.length >= 3) {
+                cacheName = CacheCommandArgs.join(args, 1, args.length - 1);
+                menuFile = lastArg;
             } else if (args.length >= 3) {
-                cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1)).trim();
-                menuFile = lastArg + ".yml";
+                cacheName = CacheCommandArgs.join(args, 1, args.length - 1);
+                menuFile = lastArg.endsWith(".yml") ? lastArg : lastArg + ".yml";
             } else {
-                cacheName = fullJoined;
+                cacheName = CacheCommandArgs.join(args, 1, args.length);
             }
         }
 

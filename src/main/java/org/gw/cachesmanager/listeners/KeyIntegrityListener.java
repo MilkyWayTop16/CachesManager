@@ -1,97 +1,134 @@
 package org.gw.cachesmanager.listeners;
 
-import org.bukkit.Bukkit;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityPickupItemEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.block.BlockDispenseEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.inventory.AnvilInventory;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
+import org.bukkit.inventory.RecipeChoice;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.ShapelessRecipe;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.managers.ItemManager;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.stream.Stream;
 
 public class KeyIntegrityListener implements Listener {
-    private final CachesManager plugin;
     private final ItemManager itemManager;
-    private final Set<UUID> pendingRepair = new HashSet<>();
 
     public KeyIntegrityListener(CachesManager plugin, ItemManager itemManager) {
-        this.plugin = plugin;
         this.itemManager = itemManager;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
-        scheduleRepair(player);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
-        scheduleRepair(player);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onDrop(PlayerDropItemEvent event) {
-        ItemStack dropped = event.getItemDrop().getItemStack();
-        if (itemManager.repairKeyStack(dropped)) {
-            event.getItemDrop().setItemStack(dropped);
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onKeyPlace(BlockPlaceEvent event) {
+        if (itemManager.isAnyKey(event.getItemInHand())) {
+            event.setCancelled(true);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPickup(EntityPickupItemEvent event) {
-        if (!(event.getEntity() instanceof Player player)) {
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onKeyUse(PlayerInteractEvent event) {
+        if (event.useItemInHand() == Event.Result.DENY) {
             return;
         }
-        ItemStack stack = event.getItem().getItemStack();
-        if (itemManager.repairKeyStack(stack)) {
-            event.getItem().setItemStack(stack);
+        if (event.useInteractedBlock() == Event.Result.DENY) {
+            return;
         }
-        scheduleRepair(player);
+
+        ItemStack item = event.getItem();
+        if (item == null || !itemManager.isAnyKey(item)) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock != null && isInteractable(clickedBlock) && !player.isSneaking()) {
+            return;
+        }
+
+        event.setUseItemInHand(Event.Result.DENY);
+        event.setUseInteractedBlock(Event.Result.DENY);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onJoin(PlayerJoinEvent event) {
-        scheduleRepair(event.getPlayer());
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onKeyAnvil(PrepareAnvilEvent event) {
+        AnvilInventory inventory = event.getInventory();
+        ItemStack first = inventory.getItem(0);
+        ItemStack second = inventory.getItem(1);
+        if ((first != null && itemManager.isAnyKey(first)) || (second != null && itemManager.isAnyKey(second))) {
+            event.setResult(null);
+        }
     }
 
-    private void scheduleRepair(Player player) {
-        if (player == null || !player.isOnline()) {
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onKeyCraft(CraftItemEvent event) {
+        if (recipeContainsKey(event.getRecipe())) {
             return;
         }
-
-        UUID uuid = player.getUniqueId();
-        if (!pendingRepair.add(uuid)) {
-            return;
-        }
-
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            pendingRepair.remove(uuid);
-            Player online = Bukkit.getPlayer(uuid);
-            if (online == null || !online.isOnline()) {
+        CraftingInventory inventory = event.getInventory();
+        for (ItemStack matrixItem : inventory.getMatrix()) {
+            if (matrixItem != null && itemManager.isAnyKey(matrixItem)) {
+                event.setCancelled(true);
                 return;
             }
+        }
+    }
 
-            int repaired = itemManager.repairKeysInInventory(online);
-            if (repaired > 0) {
-                plugin.log("Восстановлены Pdc-метки ключей у игрока &#ffff00" + online.getName()
-                        + " &f(предметов: &#ffff00" + repaired + "&f, режим игры: &#ffff00"
-                        + online.getGameMode() + "&f)");
-            }
-        });
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onKeyConsume(PlayerItemConsumeEvent event) {
+        if (itemManager.isAnyKey(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onKeyBucketEmpty(PlayerBucketEmptyEvent event) {
+        if (itemManager.isAnyKey(event.getItemStack())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onKeyDispense(BlockDispenseEvent event) {
+        if (itemManager.isAnyKey(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private boolean recipeContainsKey(Recipe recipe) {
+        Stream<RecipeChoice> choices;
+        if (recipe instanceof ShapedRecipe shaped) {
+            choices = shaped.getChoiceMap().values().stream();
+        } else if (recipe instanceof ShapelessRecipe shapeless) {
+            choices = shapeless.getChoiceList().stream();
+        } else {
+            return false;
+        }
+        return choices
+                .filter(RecipeChoice.ExactChoice.class::isInstance)
+                .map(RecipeChoice.ExactChoice.class::cast)
+                .flatMap(choice -> choice.getChoices().stream())
+                .anyMatch(itemManager::isAnyKey);
+    }
+
+    private boolean isInteractable(Block block) {
+        try {
+            return block.getType().isInteractable();
+        } catch (NoSuchMethodError ignored) {
+            return false;
+        }
     }
 }

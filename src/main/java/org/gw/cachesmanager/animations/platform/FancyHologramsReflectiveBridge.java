@@ -31,6 +31,12 @@ public final class FancyHologramsReflectiveBridge {
     private static Method hologramGetData;
     private static Method hologramQueueUpdate;
     private static Method hologramForceUpdate;
+    private static Method hologramGetName;
+
+    private static Method managerGetPersistentHolograms;
+    private static Method managerGetHolograms;
+    private static Method managerSaveHolograms;
+    private static Method dataGetName;
 
     private FancyHologramsReflectiveBridge() {}
 
@@ -72,6 +78,12 @@ public final class FancyHologramsReflectiveBridge {
             hologramGetData = findMethod(hologramClass, "getData");
             hologramQueueUpdate = findMethod(hologramClass, "queueUpdate");
             hologramForceUpdate = findMethod(hologramClass, "forceUpdate");
+            hologramGetName = findMethod(hologramClass, "getName");
+            dataGetName = findMethod(hologramDataClass, "getName");
+
+            managerGetPersistentHolograms = findMethod(managerClass, "getPersistentHolograms");
+            managerGetHolograms = findMethod(managerClass, "getHolograms");
+            managerSaveHolograms = findMethod(managerClass, "saveHolograms");
 
             List<String> missing = new java.util.ArrayList<>();
             if (pluginIsEnabled == null) missing.add("FancyHologramsPlugin#isEnabled");
@@ -179,5 +191,49 @@ public final class FancyHologramsReflectiveBridge {
 
     public static boolean isTextHologramData(Object data) {
         return textHologramDataClass != null && textHologramDataClass.isInstance(data);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<Object> getAllKnownHolograms(Object manager) {
+        try {
+            Object result = null;
+            if (managerGetPersistentHolograms != null) {
+                result = managerGetPersistentHolograms.invoke(manager);
+            }
+            if ((result == null || ((java.util.Collection<?>) result).isEmpty()) && managerGetHolograms != null) {
+                result = managerGetHolograms.invoke(manager);
+            }
+            if (result instanceof java.util.Collection) {
+                return new java.util.ArrayList<>((java.util.Collection<Object>) result);
+            }
+        } catch (Throwable ignored) {}
+        return java.util.Collections.emptyList();
+    }
+
+    public static String getHologramName(Object hologram) {
+        try {
+            if (hologramGetName != null) {
+                Object name = hologramGetName.invoke(hologram);
+                if (name != null) return name.toString();
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            Object data = getData(hologram);
+            if (dataGetName != null) {
+                Object name = dataGetName.invoke(data);
+                if (name != null) return name.toString();
+            }
+        } catch (Throwable ignored) {}
+
+        return null;
+    }
+
+    public static void saveHolograms(Object manager) {
+        try {
+            if (managerSaveHolograms != null) {
+                managerSaveHolograms.invoke(manager);
+            }
+        } catch (Throwable ignored) {}
     }
 }

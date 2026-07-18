@@ -26,13 +26,8 @@ public class ReplaceBlockModeHandler implements ChatModeHandler {
 
     @Override
     public boolean handleChat(Player player, Cache cache, ChatEditSession session, String message) {
-        Material newBlockType;
-        try {
-            newBlockType = Material.valueOf(message.toUpperCase());
-            if (!newBlockType.isBlock()) {
-                throw new IllegalArgumentException();
-            }
-        } catch (Exception e) {
+        Material newBlockType = org.gw.cachesmanager.utils.MaterialCompat.match(message, null);
+        if (newBlockType == null || !newBlockType.isBlock()) {
             Map<String, String> ph = new HashMap<>();
             ph.put("block-id", message);
             configManager.executeActions(player, "interaction.replace-block.invalid", ph);

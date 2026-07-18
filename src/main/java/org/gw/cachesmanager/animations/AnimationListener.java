@@ -1,14 +1,20 @@
 package org.gw.cachesmanager.animations;
 
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Firework;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.utils.CacheKeys;
 
 public class AnimationListener implements Listener {
     private final CachesManager plugin;
@@ -42,6 +48,17 @@ public class AnimationListener implements Listener {
     private void handlePlayerLeftAnimation(org.bukkit.entity.Player player) {
         if (executor.isPlayerInAnimation(player)) {
             executor.handlePlayerLeftAnimationEvent(player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFireworkDamage(EntityDamageByEntityEvent event) {
+        Entity damager = event.getDamager();
+        if (!(damager instanceof Firework firework)) {
+            return;
+        }
+        if (firework.getPersistentDataContainer().has(CacheKeys.GHOST.getNamespacedKey(), PersistentDataType.STRING)) {
+            event.setCancelled(true);
         }
     }
 

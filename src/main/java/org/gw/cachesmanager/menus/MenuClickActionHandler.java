@@ -178,9 +178,11 @@ public class MenuClickActionHandler {
                             String[] parts = rawValue.split(" ");
                             if (parts.length >= 2) {
                                 try {
-                                    Material material = Material.valueOf(parts[0].toUpperCase());
-                                    int amount = Integer.parseInt(parts[1]);
-                                    p.getInventory().addItem(new org.bukkit.inventory.ItemStack(material, amount));
+                                    Material material = org.gw.cachesmanager.utils.MaterialCompat.match(parts[0], null);
+                                    if (material != null) {
+                                        int amount = Integer.parseInt(parts[1]);
+                                        p.getInventory().addItem(new org.bukkit.inventory.ItemStack(material, amount));
+                                    }
                                 } catch (Exception ignored) {}
                             }
                         }

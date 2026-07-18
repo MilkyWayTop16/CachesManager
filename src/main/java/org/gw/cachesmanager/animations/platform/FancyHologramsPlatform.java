@@ -2,13 +2,12 @@ package org.gw.cachesmanager.animations.platform;
 
 import org.bukkit.Location;
 import org.gw.cachesmanager.CachesManager;
-import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 public class FancyHologramsPlatform implements HologramPlatform {
 
@@ -27,8 +26,8 @@ public class FancyHologramsPlatform implements HologramPlatform {
         if (warnedUnavailable) return;
         warnedUnavailable = true;
         if (plugin != null) {
-            plugin.error("Установленная версия плагина FancyHolograms несовместима с движком голограмм (" +
-                    FancyHologramsReflectiveBridge.getFailureReason() + "). Голограммы через FancyHolograms работать не будут...");
+            plugin.error("Установленная &#FF5D00версия &fплагина FancyHolograms &#FF5D00несовместима &fс движком голограмм (&#FF5D00" +
+                    FancyHologramsReflectiveBridge.getFailureReason() + "&f), так что &#FF5D00голограммы &fчерез FancyHolograms работать &#FF5D00не будут&f...");
         }
     }
 
@@ -70,9 +69,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
 
             Object data = FancyHologramsReflectiveBridge.createTextHologramData(id, adjusted);
             List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
-            FancyHologramsReflectiveBridge.setText(data, safeLines.stream()
-                    .map(HexColors::translate)
-                    .collect(Collectors.toList()));
+            FancyHologramsReflectiveBridge.setText(data, safeLines);
 
             Object hologram = FancyHologramsReflectiveBridge.create(manager, data);
             FancyHologramsReflectiveBridge.setNotPersistent(data, hologram);
@@ -103,9 +100,7 @@ public class FancyHologramsPlatform implements HologramPlatform {
             Object data = FancyHologramsReflectiveBridge.getData(hologram);
             if (FancyHologramsReflectiveBridge.isTextHologramData(data)) {
                 List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
-                FancyHologramsReflectiveBridge.setText(data, safeLines.stream()
-                        .map(HexColors::translate)
-                        .collect(Collectors.toList()));
+                FancyHologramsReflectiveBridge.setText(data, safeLines);
                 FancyHologramsReflectiveBridge.queueUpdate(hologram);
             }
         } catch (Throwable t) {
@@ -130,5 +125,33 @@ public class FancyHologramsPlatform implements HologramPlatform {
                 plugin.log("Ошибка удаления голограммы через плагин FancyHolograms (айди: " + id + "): " + t.getMessage());
             }
         }
+    }
+
+    public int cleanupOrphanedHolograms(Set<String> validIds) {
+        Object manager = getManager();
+        if (manager == null) return 0;
+
+        int removed = 0;
+        try {
+            List<Object> holograms = FancyHologramsReflectiveBridge.getAllKnownHolograms(manager);
+            for (Object hologram : holograms) {
+                String name = FancyHologramsReflectiveBridge.getHologramName(hologram);
+                if (name == null || !name.startsWith("cm_") || validIds.contains(name)) {
+                    continue;
+                }
+                try {
+                    FancyHologramsReflectiveBridge.removeHologram(manager, hologram);
+                    removed++;
+                } catch (Throwable ignored) {}
+            }
+            if (removed > 0) {
+                FancyHologramsReflectiveBridge.saveHolograms(manager);
+            }
+        } catch (Throwable t) {
+            if (plugin != null) {
+                plugin.log("Ошибка очистки устаревших голограмм FancyHolograms: " + t.getMessage());
+            }
+        }
+        return removed;
     }
 }

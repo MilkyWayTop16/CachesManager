@@ -12,7 +12,7 @@
 
 # Версия конфигурации плагина
 # (Ни в коем случае не трогать данный параметр!)
-config-version: 1.4.2
+config-version: 1.5
 
 # Настройки всех параметров
 settings:
@@ -175,6 +175,9 @@ actions:
     break-forbidden:
       - "[message] &#FB8808▶ Стоп! &fТайник &#FB8808«{name-cache}» &fломать нельзя!"
       - "[sound] BLOCK_ANVIL_LAND"
+    block-removed:
+      - "[message] &#FFFF00▶ &fБлок тайника &#FFFF00«{name-cache}» &fудалён!"
+      - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
     delete:
       confirm:
         - "[message] "
@@ -226,7 +229,7 @@ actions:
           - "[message] "
           - "[sound] BLOCK_NOTE_BLOCK_PLING"
         completed:
-          - "[message] &#FFFF00◆ &fТекст голограммы для тайника &#FFFF00«{name-cache}» &fуспешно изменёна!"
+          - "[message] &#FFFF00◆ &fТекст голограммы для тайника &#FFFF00«{name-cache}» &fуспешно изменён!"
           - "[sound] ENTITY_EXPERIENCE_ORB_PICKUP"
         cancelled:
           - "[message] &#FFFF00◆ &fРежим изменения текста голограммы тайника &#FFFF00«{name-cache}» &fуспешно отменён!"

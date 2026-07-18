@@ -163,6 +163,70 @@ public class AnimationExecutor {
         registerActiveAnimation(cacheName);
     }
 
+    private void resolveOpeningCompletion(CacheOpening opening, Player referencePlayer) {
+        if (referencePlayer != null && !referencePlayer.isOnline()) {
+            ItemStack lootItem = opening.getChosenItem();
+            if (lootItem != null) {
+                pendingLoot.put(referencePlayer.getUniqueId(), lootItem);
+            }
+            opening.cancel();
+        } else {
+            opening.finishVisual();
+        }
+    }
+
+    private void restoreHologramIfEnabled(String cacheName, Cache cache) {
+        if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
+            plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
+        }
+    }
+
+    private void releaseCacheAndDeliverPendingLoot(String cacheName, Player player) {
+        Cache cache = plugin.getCacheManager().getCache(cacheName);
+        if (cache != null) {
+            cache.setInUse(false);
+        }
+
+        ItemStack removedItem = activeAnimationLoot.remove(cacheName);
+        if (removedItem != null) {
+            deliverItemToPlayerOrPending(player, removedItem, cacheName);
+        }
+
+        restoreHologramIfEnabled(cacheName, cache);
+    }
+
+    private void deliverItemToPlayerOrPending(Player player, ItemStack item, String cacheName) {
+        if (item == null) {
+            return;
+        }
+        if (player != null && player.isOnline()) {
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(item.clone());
+            if (!leftover.isEmpty() && player.getWorld() != null) {
+                for (ItemStack drop : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                }
+                Map<String, String> ph = new HashMap<>();
+                ph.put("name-cache", cacheName != null ? cacheName : "");
+                plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
+            }
+            return;
+        }
+        if (player != null) {
+            pendingLoot.put(player.getUniqueId(), item);
+        } else {
+            plugin.error("Предмет из тайника &#ffff00" + cacheName + " &fпотерян, так как владелец не определён...");
+        }
+    }
+
+    private Player findOwnerFor(String cacheName) {
+        for (Map.Entry<UUID, String> entry : playerActiveCaches.entrySet()) {
+            if (entry.getValue().equals(cacheName)) {
+                return plugin.getServer().getPlayer(entry.getKey());
+            }
+        }
+        return null;
+    }
+
     private void finishAnimation(String cacheName, Player player, ItemStack item, Location baseLocation,
                                  Location itemLoc, Animation animation, Cache cache, CacheOpening opening) {
         activeAnimationLoot.remove(cacheName);
@@ -179,28 +243,11 @@ public class AnimationExecutor {
         CacheOpening effectiveOpening = opening != null ? opening : tracked;
 
         if (effectiveOpening != null) {
-            Player effPlayer = effectiveOpening.getPlayer();
-            if (effPlayer != null && !effPlayer.isOnline()) {
-                ItemStack lootItem = effectiveOpening.getChosenItem();
-                if (lootItem != null) {
-                    pendingLoot.put(effPlayer.getUniqueId(), lootItem);
-                }
-                effectiveOpening.cancel();
-            } else {
-                effectiveOpening.finishVisual();
-            }
+            resolveOpeningCompletion(effectiveOpening, effectiveOpening.getPlayer());
         } else {
             if (player != null && player.isOnline()) {
-                Map<String, String> ph = new HashMap<>();
-                ph.put("name-cache", cache.getName());
-                if (player.getInventory().firstEmpty() == -1) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), item);
-                    plugin.getConfigManager().executeActions(player, "cache.inventory-full", ph);
-                    plugin.log("Инвентарь игрока &#ffff00" + player.getName() + " &fзаполнен, награда из тайника &#ffff00" + cacheName + " &fвыброшена на землю...");
-                } else {
-                    player.getInventory().addItem(item);
-                    plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан в инвентарь игрока &#ffff00" + player.getName());
-                }
+                deliverItemToPlayerOrPending(player, item, cacheName);
+                plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fуспешно выдан игроку &#ffff00" + player.getName());
             } else if (player != null) {
                 pendingLoot.put(player.getUniqueId(), item);
                 plugin.log("Игрок &#ffff00" + player.getName() + " &fвышел из сети во время анимации тайника &#ffff00" + cacheName + " &f, награда сохранена в кэш ожидания...");
@@ -211,10 +258,8 @@ public class AnimationExecutor {
             Cache liveCache = plugin.getCacheManager().getCache(cacheName);
             if (liveCache != null) {
                 liveCache.setInUse(false);
-                if (liveCache.isHologramEnabled() && liveCache.getLocation() != null && plugin.getHologramManager() != null) {
-                    plugin.getHologramManager().createHologram(cacheName, liveCache.getLocation(), liveCache.getHologramLines());
-                }
             }
+            restoreHologramIfEnabled(cacheName, liveCache);
         }
     }
 
@@ -260,6 +305,13 @@ public class AnimationExecutor {
         meta.addEffect(builder.build());
         fw.setFireworkMeta(meta);
         fw.setVelocity(new Vector(0, 0.42, 0));
+        try {
+            fw.getPersistentDataContainer().set(
+                    org.gw.cachesmanager.utils.CacheKeys.GHOST.getNamespacedKey(),
+                    org.bukkit.persistence.PersistentDataType.STRING,
+                    "nofireworkdamage"
+            );
+        } catch (Throwable ignored) {}
 
         BukkitTask flightTask = new BukkitRunnable() {
             int ticks = 0;
@@ -305,47 +357,7 @@ public class AnimationExecutor {
     public void forceFinishAnimationForPlayer(Player player) {
         String cacheName = playerActiveCaches.remove(player.getUniqueId());
         if (cacheName != null) {
-            orphanedAnimations.remove(cacheName);
-            BukkitTask task = phaseTasks.remove(cacheName);
-            if (task != null) task.cancel();
-            unregisterActiveAnimation(cacheName);
-
-            CacheOpening opening = activeOpenings.remove(cacheName);
-            if (opening != null) {
-                if (player != null && !player.isOnline()) {
-                    ItemStack lootItem = opening.getChosenItem();
-                    if (lootItem != null) {
-                        pendingLoot.put(player.getUniqueId(), lootItem);
-                    }
-                    opening.cancel();
-                } else {
-                    opening.finishVisual();
-                }
-            } else {
-                var cache = plugin.getCacheManager().getCache(cacheName);
-                if (cache != null) {
-                    cache.setInUse(false);
-                }
-
-                ItemStack removedItem = activeAnimationLoot.remove(cacheName);
-                if (removedItem != null && player != null) {
-                    if (player.isOnline()) {
-                        if (player.getInventory().firstEmpty() != -1) {
-                            player.getInventory().addItem(removedItem.clone());
-                        } else {
-                            player.getWorld().dropItemNaturally(player.getLocation(), removedItem.clone());
-                        }
-                    } else {
-                        pendingLoot.put(player.getUniqueId(), removedItem);
-                    }
-                }
-
-                if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                    plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
-                }
-            }
-
-            animationView.remove(cacheName);
+            forceCompleteAnimation(cacheName, player);
             plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпринудительно остановлена для игрока &#ffff00" + player.getName());
         }
     }
@@ -355,33 +367,37 @@ public class AnimationExecutor {
         if (cacheName == null) return;
 
         if (!plugin.getConfigManager().getMainConfig().isContinueAnimationIfPlayersNearby()) {
-            forceFinishAnimationForPlayerInternal(cacheName, player);
+            forceCompleteAnimation(cacheName, player);
             return;
         }
 
         org.gw.cachesmanager.caches.Cache cache = plugin.getCacheManager().getCache(cacheName);
         if (cache == null || cache.getLocation() == null) {
-            forceFinishAnimationForPlayerInternal(cacheName, player);
+            forceCompleteAnimation(cacheName, player);
             return;
         }
 
-        boolean hasNearbyPlayers = hasPlayersNearLocation(cache.getLocation());
+        boolean hasNearbyPlayers = hasPlayersNearLocation(cache.getLocation(), player);
 
         if (hasNearbyPlayers) {
             makeAnimationOrphaned(cacheName, player.getUniqueId());
             plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпродолжена для игроков, находящихся рядом");
         } else {
-            forceFinishAnimationForPlayerInternal(cacheName, player);
+            forceCompleteAnimation(cacheName, player);
         }
     }
 
-    private boolean hasPlayersNearLocation(org.bukkit.Location location) {
-        if (location == null) return false;
+    private boolean hasPlayersNearLocation(org.bukkit.Location location, Player exclude) {
+        if (location == null || location.getWorld() == null) return false;
 
         int radius = plugin.getConfigManager().getMainConfig().getOrphanedAnimationRadius();
         double radiusSquared = radius * radius;
+        UUID excludeId = exclude != null ? exclude.getUniqueId() : null;
 
         for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (excludeId != null && excludeId.equals(p.getUniqueId())) {
+                continue;
+            }
             if (p.getWorld().equals(location.getWorld()) &&
                 p.getLocation().distanceSquared(location) <= radiusSquared) {
                 return true;
@@ -390,60 +406,53 @@ public class AnimationExecutor {
         return false;
     }
 
-    private void forceFinishAnimationForPlayerInternal(String cacheName, Player player) {
+    private void forceCompleteAnimation(String cacheName, Player preferredPlayer) {
+        if (cacheName == null) {
+            return;
+        }
+
+        orphanedAnimations.remove(cacheName);
+
         BukkitTask task = phaseTasks.remove(cacheName);
-        if (task != null) task.cancel();
+        if (task != null) {
+            task.cancel();
+        }
         unregisterActiveAnimation(cacheName);
 
         CacheOpening opening = activeOpenings.remove(cacheName);
-        if (opening != null) {
-            if (player != null && !player.isOnline()) {
-                ItemStack lootItem = opening.getChosenItem();
-                if (lootItem != null) {
-                    pendingLoot.put(player.getUniqueId(), lootItem);
-                }
-                opening.cancel();
-            } else {
-                opening.finishVisual();
-            }
-        } else {
-            var cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null) {
-                cache.setInUse(false);
-            }
+        ItemStack lootFromMap = activeAnimationLoot.remove(cacheName);
 
-            ItemStack removedItem = activeAnimationLoot.remove(cacheName);
-            if (removedItem != null && player != null) {
-                if (player.isOnline()) {
-                    if (player.getInventory().firstEmpty() != -1) {
-                        player.getInventory().addItem(removedItem.clone());
-                    } else {
-                        player.getWorld().dropItemNaturally(player.getLocation(), removedItem.clone());
-                    }
-                } else {
-                    pendingLoot.put(player.getUniqueId(), removedItem);
-                }
-            }
-
-            if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
-            }
+        Player owner = preferredPlayer;
+        if (owner == null && opening != null) {
+            owner = opening.getPlayer();
+        }
+        if (owner == null) {
+            owner = findOwnerFor(cacheName);
         }
 
+        playerActiveCaches.values().removeIf(name -> name.equals(cacheName));
         animationView.remove(cacheName);
-        if (player != null) {
-            plugin.log("Анимация тайника &#ffff00" + cacheName + " &fпринудительно остановлена для игрока &#ffff00" + player.getName());
+
+        if (opening != null) {
+            resolveOpeningCompletion(opening, owner);
+            return;
         }
+
+        if (lootFromMap != null) {
+            deliverItemToPlayerOrPending(owner, lootFromMap, cacheName);
+        }
+
+        Cache cache = plugin.getCacheManager() != null ? plugin.getCacheManager().getCache(cacheName) : null;
+        if (cache != null) {
+            cache.setInUse(false);
+        }
+        restoreHologramIfEnabled(cacheName, cache);
     }
 
     public void givePendingLootToPlayer(Player player) {
         ItemStack item = pendingLoot.remove(player.getUniqueId());
         if (item == null) return;
-        if (player.getInventory().firstEmpty() == -1) {
-            player.getWorld().dropItemNaturally(player.getLocation(), item.clone());
-        } else {
-            player.getInventory().addItem(item.clone());
-        }
+        deliverItemToPlayerOrPending(player, item, null);
         plugin.log("Отложенная награда тайника успешно выдана вернувшемуся игроку &#ffff00" + player.getName());
     }
 
@@ -451,92 +460,27 @@ public class AnimationExecutor {
         animationView.remove(cacheName);
     }
 
-    private void forceRemoveAnimation(String cacheName) {
-        BukkitTask task = phaseTasks.remove(cacheName);
-        if (task != null) task.cancel();
-        unregisterActiveAnimation(cacheName);
-
-        CacheOpening opening = activeOpenings.remove(cacheName);
-        if (opening != null) {
-            Player p = opening.getPlayer();
-            if (p != null && !p.isOnline()) {
-                ItemStack it = opening.getChosenItem();
-                if (it != null) {
-                    pendingLoot.put(p.getUniqueId(), it);
-                }
-                opening.cancel();
-            } else {
-                opening.finishVisual();
-            }
-        } else {
-            animationView.remove(cacheName);
-
-            Cache cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null) {
-                cache.setInUse(false);
-
-                ItemStack item = activeAnimationLoot.remove(cacheName);
-                if (item != null) {
-                    Player owner = null;
-                    for (Map.Entry<UUID, String> entry : playerActiveCaches.entrySet()) {
-                        if (entry.getValue().equals(cacheName)) {
-                            owner = plugin.getServer().getPlayer(entry.getKey());
-                            break;
-                        }
-                    }
-
-                    if (owner != null && owner.isOnline()) {
-                        if (owner.getInventory().firstEmpty() != -1) {
-                            owner.getInventory().addItem(item.clone());
-                        } else {
-                            owner.getWorld().dropItemNaturally(owner.getLocation(), item.clone());
-                        }
-                    } else if (owner != null) {
-                        pendingLoot.put(owner.getUniqueId(), item);
-                    } else {
-                        plugin.error("Предмет из тайника &#ffff00" + cacheName + " &fпотерян, так как владелец не определён...");
-                    }
-                }
-
-                playerActiveCaches.values().removeIf(name -> name.equals(cacheName));
-
-                if (cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                    plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
-                }
-            }
-        }
-    }
-
     public void handleChunkUnload(World world, int chunkX, int chunkZ) {
-
         if (animationView instanceof LegacyAnimationView legacyView) {
             handleLegacyChunkUnload(legacyView, world, chunkX, chunkZ);
         }
 
+        java.util.Set<String> candidates = new java.util.HashSet<>();
+        candidates.addAll(activeAnimationLoot.keySet());
+        candidates.addAll(activeOpenings.keySet());
+        candidates.addAll(phaseTasks.keySet());
+        candidates.addAll(activeAnimations);
 
-        for (String cacheName : new ArrayList<>(activeAnimationLoot.keySet())) {
-            Cache cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null && cache.getLocation() != null) {
-                Location loc = cache.getLocation();
-                if (loc.getWorld().equals(world) &&
-                    (loc.getBlockX() >> 4) == chunkX &&
-                    (loc.getBlockZ() >> 4) == chunkZ) {
-                    CacheOpening opening = activeOpenings.remove(cacheName);
-                    if (opening != null) {
-                        Player p = opening.getPlayer();
-                        if (p != null && !p.isOnline()) {
-                            ItemStack it = opening.getChosenItem();
-                            if (it != null) {
-                                pendingLoot.put(p.getUniqueId(), it);
-                            }
-                            opening.cancel();
-                        } else {
-                            opening.finishVisual();
-                        }
-                    } else {
-                        forceRemoveAnimation(cacheName);
-                    }
-                }
+        for (String cacheName : candidates) {
+            Cache cache = plugin.getCacheManager() != null ? plugin.getCacheManager().getCache(cacheName) : null;
+            if (cache == null || cache.getLocation() == null || cache.getLocation().getWorld() == null) {
+                continue;
+            }
+            Location loc = cache.getLocation();
+            if (loc.getWorld().equals(world)
+                    && (loc.getBlockX() >> 4) == chunkX
+                    && (loc.getBlockZ() >> 4) == chunkZ) {
+                forceCompleteAnimation(cacheName, null);
             }
         }
     }
@@ -589,25 +533,25 @@ public class AnimationExecutor {
     }
 
     public void cleanupGhostEntities(Player player) {
+        if (player == null || player.getWorld() == null) {
+            return;
+        }
         Location center = player.getLocation();
         World world = center.getWorld();
 
-
         for (org.bukkit.entity.Entity entity : world.getNearbyEntities(center, 48, 48, 48)) {
-            if (entity.getPersistentDataContainer().has(org.gw.cachesmanager.utils.CacheKeys.GHOST.getNamespacedKey(), org.bukkit.persistence.PersistentDataType.STRING)) {
-                entity.remove();
+            if (entity instanceof org.bukkit.entity.Firework) {
+                continue;
             }
-        }
-
-
-        if (animationView instanceof LegacyAnimationView legacyView) {
-            legacyView.getItemHolograms().values().removeIf(stand -> {
-                if (stand != null && !stand.isDead() && stand.getWorld().equals(world) && stand.getLocation().distanceSquared(center) < 2304) {
-                    stand.remove();
-                    return true;
-                }
-                return false;
-            });
+            if (!entity.getPersistentDataContainer().has(
+                    org.gw.cachesmanager.utils.CacheKeys.GHOST.getNamespacedKey(),
+                    org.bukkit.persistence.PersistentDataType.STRING)) {
+                continue;
+            }
+            if (animationView.isManagedEntity(entity)) {
+                continue;
+            }
+            entity.remove();
         }
     }
 
@@ -647,6 +591,17 @@ public class AnimationExecutor {
     }
 
     public void clearAllAnimations() {
+        java.util.Set<String> all = new java.util.HashSet<>();
+        all.addAll(activeOpenings.keySet());
+        all.addAll(activeAnimationLoot.keySet());
+        all.addAll(phaseTasks.keySet());
+        all.addAll(activeAnimations);
+        all.addAll(orphanedAnimations);
+
+        for (String cacheName : new ArrayList<>(all)) {
+            forceCompleteAnimation(cacheName, null);
+        }
+
         orphanedAnimations.clear();
 
         if (centralTask != null) {
@@ -654,76 +609,13 @@ public class AnimationExecutor {
             centralTask = null;
         }
         for (BukkitTask task : phaseTasks.values()) {
-            if (task != null) task.cancel();
+            if (task != null) {
+                task.cancel();
+            }
         }
         phaseTasks.clear();
         activeAnimations.clear();
-
-        for (String cacheName : new ArrayList<>(activeOpenings.keySet())) {
-            CacheOpening opening = activeOpenings.remove(cacheName);
-            if (opening != null) {
-                Player p = opening.getPlayer();
-                if (p != null && !p.isOnline()) {
-                    ItemStack it = opening.getChosenItem();
-                    if (it != null) {
-                        pendingLoot.put(p.getUniqueId(), it);
-                    }
-                    opening.cancel();
-                } else {
-                    opening.finishVisual();
-                }
-            }
-            activeAnimationLoot.remove(cacheName);
-            playerActiveCaches.values().removeIf(name -> name.equals(cacheName));
-        }
         activeOpenings.clear();
-
-        for (Map.Entry<String, ItemStack> entry : new ArrayList<>(activeAnimationLoot.entrySet())) {
-            String cacheName = entry.getKey();
-            ItemStack item = entry.getValue();
-
-            Player owner = null;
-            for (Map.Entry<UUID, String> playerEntry : playerActiveCaches.entrySet()) {
-                if (playerEntry.getValue().equals(cacheName)) {
-                    owner = plugin.getServer().getPlayer(playerEntry.getKey());
-                    break;
-                }
-            }
-
-            var cache = plugin.getCacheManager().getCache(cacheName);
-            if (cache != null) {
-                cache.setInUse(false);
-            }
-
-            if (item != null) {
-                boolean given = false;
-
-                if (owner != null && owner.isOnline()) {
-                    if (owner.getInventory().firstEmpty() != -1) {
-                        owner.getInventory().addItem(item.clone());
-                        plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fвыдан игроку &#ffff00" + owner.getName() + " &fпри принудительной очистке анимаций");
-                        given = true;
-                    } else {
-                        owner.getWorld().dropItemNaturally(owner.getLocation(), item.clone());
-                        plugin.log("Инвентарь игрока &#ffff00" + owner.getName() + " &fбыл полон, предмет из тайника &#ffff00" + cacheName + " &fвыброшен на землю при очистке анимаций...");
-                        given = true;
-                    }
-                }
-
-                if (!given) {
-                    if (owner != null) {
-                        pendingLoot.put(owner.getUniqueId(), item);
-                    } else {
-                        plugin.log("Предмет из тайника &#ffff00" + cacheName + " &fпотерян при очистке анимаций...");
-                    }
-                }
-            }
-
-            if (cache != null && cache.isHologramEnabled() && cache.getLocation() != null && plugin.getHologramManager() != null) {
-                plugin.getHologramManager().createHologram(cacheName, cache.getLocation(), cache.getHologramLines());
-            }
-        }
-
         activeAnimationLoot.clear();
         playerActiveCaches.clear();
         circleMathCache.clear();

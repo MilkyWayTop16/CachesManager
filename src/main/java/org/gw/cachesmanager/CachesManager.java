@@ -59,7 +59,7 @@ public class CachesManager extends JavaPlugin {
         initMenusAndListeners();
         registerCommands();
 
-        Bukkit.getScheduler().runTaskLater(this, cacheManager::loadCaches, 5L);
+        Bukkit.getScheduler().runTaskLater(this, () -> cacheManager.loadCaches(), 5L);
 
         return true;
     }
@@ -154,14 +154,14 @@ public class CachesManager extends JavaPlugin {
         reloadDatabase();
         reloadAnimations(false);
         reloadMenus();
-        reloadCaches();
+        reloadCaches(() -> {
+            if (menuManager != null) {
+                menuManager.refreshOpenMenus();
+            }
+        });
 
         PlaceholderAPIHook.init();
         if (updateChecker != null) updateChecker.reload();
-
-        if (menuManager != null) {
-            menuManager.refreshOpenMenus();
-        }
     }
 
     private void reloadDatabase() {
@@ -194,13 +194,17 @@ public class CachesManager extends JavaPlugin {
     }
 
     private void reloadCaches() {
+        reloadCaches(null);
+    }
+
+    private void reloadCaches(Runnable onComplete) {
         console("&#ffff00◆ CachesManager &f| Перезагрузка тайников...");
         if (animationsManager != null) {
             cacheManager.removeHologramsExceptActiveAnimations(animationsManager);
         } else {
             cacheManager.removeAllHolograms();
         }
-        cacheManager.loadCaches();
+        cacheManager.loadCaches(onComplete);
     }
 
     public void forceReloadPlugin() {
@@ -217,17 +221,15 @@ public class CachesManager extends JavaPlugin {
 
         if (cacheManager != null) {
             cacheManager.removeAllHolograms();
-        }
-        if (cacheManager != null) {
-            cacheManager.loadCaches();
+            cacheManager.loadCaches(() -> {
+                if (menuManager != null) {
+                    menuManager.refreshOpenMenus();
+                }
+            });
         }
 
         PlaceholderAPIHook.init();
         if (updateChecker != null) updateChecker.reload();
-
-        if (menuManager != null) {
-            menuManager.refreshOpenMenus();
-        }
     }
 
     private void logStartupInfo(long loadTime) {
@@ -239,7 +241,7 @@ public class CachesManager extends JavaPlugin {
         console("&#ffff00 ");
         console("&#00FF5A          ▶ &fПлагин &#00FF5Aуспешно &fзагружен и включен!");
         console("&#ffff00 ");
-        console("&#ffff00              ◆ &fВерсия плагина: &#ffff00" + getDescription().getVersion());
+        console("&#ffff00              ◆ &fВерсия плагина: &#ffff00v" + getDescription().getVersion());
         console("&#ffff00             ◆ &fЗагруженных тайников: &#ffff00" + configManager.getCacheNames().size());
         console("&#ffff00             ◆ &fВремя загрузки: &#ffff00" + loadTime + " мс.");
         console("&#ffff00 ");
@@ -297,7 +299,7 @@ public class CachesManager extends JavaPlugin {
         console("&#ffff00 ");
         console("&#FF5D00        ▶ &fПлагин &#FF5D00успешно &fвыгружен и выключен!");
         console("&#ffff00 ");
-        console("&#ffff00               ◆ &fВерсия плагина: &#ffff00" + getDescription().getVersion());
+        console("&#ffff00               ◆ &fВерсия плагина: &#ffff00v" + getDescription().getVersion());
         console("&#ffff00             ◆ &fСохранено тайников: &#ffff00" + (configManager != null ? configManager.getCacheNames().size() : 0));
         console("&#ffff00             ◆ &fВремя выгрузки: &#ffff00" + unloadTime + " мс.");
         console("&#ffff00 ");

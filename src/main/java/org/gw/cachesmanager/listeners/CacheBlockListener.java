@@ -94,11 +94,7 @@ public class CacheBlockListener implements Listener {
             Map<String, String> ph = new HashMap<>();
             ph.put("name-cache", cache.getName());
 
-            if (clickMatches) {
-                if (!player.hasPermission(permission)) {
-                    configManager.executeActions(player, "errors.no-permission");
-                    return;
-                }
+            if (clickMatches && player.hasPermission(permission)) {
                 plugin.log("Игрок &#ffff00" + player.getName() + " &fоткрыл главное меню управления для тайника &#ffff00" + cache.getName());
                 menuManager.openMenu(player, cache.getName(), "global-menu.yml");
                 return;
@@ -110,26 +106,20 @@ public class CacheBlockListener implements Listener {
                     return;
                 }
 
-                boolean hasAnyKey = itemManager.isAnyKey(mainItem) || itemManager.isAnyKey(offItem);
-
-                if (!hasAnyKey) {
-                    configManager.executeActions(player, "key.no-key-in-hand", ph);
-                    return;
-                }
-
-                ItemStack keyItem = null;
                 EquipmentSlot keyHand = null;
-
                 if (itemManager.isKey(mainItem, cache.getName())) {
-                    keyItem = mainItem;
                     keyHand = EquipmentSlot.HAND;
                 } else if (itemManager.isKey(offItem, cache.getName())) {
-                    keyItem = offItem;
                     keyHand = EquipmentSlot.OFF_HAND;
                 }
 
-                if (keyItem == null) {
-                    configManager.executeActions(player, "key.wrong-key", ph);
+                if (keyHand == null) {
+                    boolean hasPluginKey = itemManager.isAnyKey(mainItem) || itemManager.isAnyKey(offItem);
+                    if (hasPluginKey) {
+                        configManager.executeActions(player, "key.wrong-key", ph);
+                    } else {
+                        configManager.executeActions(player, "key.no-key-in-hand", ph);
+                    }
                     return;
                 }
 
@@ -150,18 +140,21 @@ public class CacheBlockListener implements Listener {
                     }
                 }
 
+                if (!itemManager.consumeKey(player, keyHand, cache.getName())) {
+                    configManager.executeActions(player, "key.no-key-in-hand", ph);
+                    return;
+                }
+
                 if (cacheManager.openCache(cache, player)) {
                     plugin.log("Игрок &#ffff00" + player.getName() + " &fуспешно использовал ключ для открытия тайника &#ffff00" + cache.getName());
-                    if (keyItem.getAmount() > 1) {
-                        keyItem.setAmount(keyItem.getAmount() - 1);
-                    } else {
-                        if (keyHand == EquipmentSlot.HAND) {
-                            player.getInventory().setItemInMainHand(null);
-                        } else {
-                            player.getInventory().setItemInOffHand(null);
-                        }
-                    }
+                } else {
+                    itemManager.giveKey(player, cache.getName(), 1);
                 }
+                return;
+            }
+
+            if (clickMatches) {
+                configManager.executeActions(player, "errors.no-permission");
                 return;
             }
 
@@ -171,13 +164,6 @@ public class CacheBlockListener implements Listener {
                 } else {
                     event.setCancelled(false);
                 }
-                return;
-            }
-        }
-
-        if (itemManager.isAnyKey(mainItem) || itemManager.isAnyKey(offItem)) {
-            if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                event.setCancelled(true);
             }
         }
     }
@@ -213,8 +199,8 @@ public class CacheBlockListener implements Listener {
             } else {
                 event.setCancelled(false);
                 ph.put("name-cache", existingCache.getName());
-                configManager.executeActions(player, "cache.deleted", ph);
-                plugin.log("Тайник &#ffff00" + existingCache.getName() + " &fбыл физически разрушен игроком &#ffff00" + player.getName());
+                configManager.executeActions(player, "cache.block-removed", ph);
+                plugin.log("Блок тайника &#ffff00" + existingCache.getName() + " &fбыл разрушен игроком &#ffff00" + player.getName());
                 cacheManager.setCacheLocation(existingCache, null);
                 cacheManager.setCacheBlockType(existingCache, null);
                 configManager.saveCacheConfig(existingCache.getName());

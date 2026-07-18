@@ -108,4 +108,12 @@ public class ModernAnimationView implements AnimationView {
         TextDisplay text = texts.remove(cacheName);
         if (text != null) text.remove();
     }
+
+    @Override
+    public boolean isManagedEntity(org.bukkit.entity.Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        return itemDisplays.containsValue(entity) || texts.containsValue(entity);
+    }
 }

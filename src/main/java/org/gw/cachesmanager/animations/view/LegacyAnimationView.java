@@ -130,4 +130,14 @@ public class LegacyAnimationView implements AnimationView {
             nameStand.remove();
         }
     }
+
+    @Override
+    public boolean isManagedEntity(org.bukkit.entity.Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        return phantomItems.containsValue(entity)
+                || itemHolograms.containsValue(entity)
+                || mounts.containsValue(entity);
+    }
 }

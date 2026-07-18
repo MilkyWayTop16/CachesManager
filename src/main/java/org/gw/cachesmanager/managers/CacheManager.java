@@ -192,6 +192,10 @@ public class CacheManager {
     }
 
     public void loadCaches() {
+        loadCaches(null);
+    }
+
+    public void loadCaches(Runnable onComplete) {
         if (isReloading) return;
         isReloading = true;
 
@@ -206,40 +210,55 @@ public class CacheManager {
             legacyHologramCleanupDone = true;
         }
 
-        Map<String, org.gw.cachesmanager.caches.Cache> oldCaches = registry.getCachesMap();
+        Map<String, org.gw.cachesmanager.caches.Cache> oldCaches = registry.snapshotCachesMap();
         registry.clear();
 
         List<String> cacheNames = configManager.getCacheNames();
 
+        Runnable finishLoad = () -> {
+            try {
+                for (String cacheName : cacheNames) {
+                    org.gw.cachesmanager.caches.Cache oldCache = oldCaches.get(cacheName);
+                    boolean stoodInUse = oldCache != null && oldCache.isInUse();
+
+                    Cache cache = new Cache(cacheName);
+                    if (stoodInUse) {
+                        cache.setInUse(true);
+                    }
+                    persistenceHandler.loadCache(cache);
+                    registry.register(cache);
+
+                    boolean hasActiveAnim = plugin.getAnimationsManager() != null && plugin.getAnimationsManager().hasActiveAnimation(cacheName);
+                    if (!stoodInUse && !hasActiveAnim && cache.getLocation() != null && cache.isHologramEnabled()) {
+                        refreshHologram(cache);
+                    }
+                    if (plugin.getMenuManager() != null) {
+                        plugin.getMenuManager().initializeCachePageLoot(cacheName);
+                    }
+                }
+
+                sanitizeStuckAnimationStates();
+                plugin.log("Успешно инициализировано и загружено файлов тайников: " + registry.size());
+            } finally {
+                isReloading = false;
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            }
+        };
+
         if (plugin.getDatabaseManager() != null && !plugin.getDatabaseManager().hasMigratedFromV12()) {
-            plugin.getDatabaseManager().performEfficientV12Migration(cacheNames);
+            plugin.getDatabaseManager().performEfficientV12MigrationAsync(cacheNames)
+                    .whenComplete((ignored, error) -> {
+                        if (error != null) {
+                            plugin.error("Ошибка асинхронной миграции 1.2: " + error.getMessage());
+                        }
+                        org.bukkit.Bukkit.getScheduler().runTask(plugin, finishLoad);
+                    });
+            return;
         }
 
-        for (String cacheName : cacheNames) {
-            org.gw.cachesmanager.caches.Cache oldCache = oldCaches.get(cacheName);
-            boolean stoodInUse = oldCache != null && oldCache.isInUse();
-
-            Cache cache = new Cache(cacheName);
-            if (stoodInUse) {
-                cache.setInUse(true);
-            }
-            persistenceHandler.loadCache(cache);
-            registry.register(cache);
-
-            boolean hasActiveAnim = plugin.getAnimationsManager() != null && plugin.getAnimationsManager().hasActiveAnimation(cacheName);
-            if (!stoodInUse && !hasActiveAnim && cache.getLocation() != null && cache.isHologramEnabled()) {
-                refreshHologram(cache);
-            }
-            if (plugin.getMenuManager() != null) {
-                plugin.getMenuManager().initializeCachePageLoot(cacheName);
-            }
-        }
-
-        isReloading = false;
-
-        sanitizeStuckAnimationStates();
-
-        plugin.log("Успешно инициализировано и загружено файлов тайников: " + registry.getCachesMap().size());
+        finishLoad.run();
     }
 
     private void sanitizeStuckAnimationStates() {
@@ -313,6 +332,11 @@ public class CacheManager {
 
     public Cache getCacheByLocation(Location location) {
         return (Cache) registry.getByLocation(location);
+    }
+
+    public Set<String> getCacheNamesInChunk(org.bukkit.World world, int chunkX, int chunkZ) {
+        if (world == null) return Collections.emptySet();
+        return registry.getCacheNamesInChunk(world.getName(), chunkX, chunkZ);
     }
 
     public Map<String, org.gw.cachesmanager.caches.Cache> getCaches() {

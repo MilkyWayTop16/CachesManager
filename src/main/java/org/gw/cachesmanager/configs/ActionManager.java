@@ -53,8 +53,8 @@ public class ActionManager {
 
         Map<String, String> ph = placeholders != null ? new HashMap<>(placeholders) : new HashMap<>();
         if (player != null) {
-            ph.put("player", player.getName());
-            ph.put("player_display", player.getDisplayName());
+            ph.putIfAbsent("player", player.getName());
+            ph.putIfAbsent("player_display", player.getDisplayName());
         }
 
         for (String action : actions) {
@@ -87,9 +87,11 @@ public class ActionManager {
                         sendConfirmationMessage(player, rawValue, cacheName);
                         continue;
                     }
+                    String message = rawValue.startsWith(" ") ? rawValue.substring(1) : rawValue;
                     if (player != null) {
-                        String message = rawValue.startsWith(" ") ? rawValue.substring(1) : rawValue;
                         player.sendMessage(HexColors.translateToComponent(message));
+                    } else {
+                        plugin.console(message);
                     }
                 }
                 case "[message-console]" -> plugin.console(HexColors.translate(rawValue.trim()));
@@ -175,7 +177,10 @@ public class ActionManager {
                     String[] parts = rawValue.trim().split(" ");
                     if (parts.length >= 2 && player != null) {
                         try {
-                            Material material = Material.valueOf(parts[0].toUpperCase());
+                            Material material = org.gw.cachesmanager.utils.MaterialCompat.match(parts[0], null);
+                            if (material == null) {
+                                throw new IllegalArgumentException("unknown material");
+                            }
                             int amount = Integer.parseInt(parts[1]);
                             player.getInventory().addItem(new ItemStack(material, amount));
                         } catch (Exception e) {

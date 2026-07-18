@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -33,22 +34,51 @@ public class ConfigUpdater {
             return;
         }
 
-        int userVersion = getVersion(userConfig);
-        int defaultVersion = getVersion(defaultConfig);
-
-        if (userVersion >= defaultVersion) return;
+        String defaultVersion = defaultConfig.getString("config-version", "1.0");
+        String userVersion = userConfig.getString("config-version", "1.0");
+        if (compareVersions(userVersion, defaultVersion) >= 0) {
+            return;
+        }
 
         boolean changed = mergeMissingKeys(userConfig, defaultConfig, "");
+        userConfig.set("config-version", defaultVersion);
 
         if (changed) {
             createBackup(targetFile);
-        }
-        userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
-        if (changed) {
             saveConfig(targetFile, userConfig, "Конфиг " + targetFile.getName() + " обновлён");
         } else {
-            saveConfig(targetFile, userConfig, "Версия конфига " + targetFile.getName() + " обновлена до " + defaultConfig.getString("config-version", "1.0"));
+            saveConfig(targetFile, userConfig, "Версия конфига " + targetFile.getName() + " обновлена до " + defaultVersion);
         }
+    }
+
+    public boolean replaceFromResourceIfOutdated(File targetFile, String resourcePath) {
+        if (targetFile == null || resourcePath == null) return false;
+
+        FileConfiguration defaultConfig = loadDefaultConfig(resourcePath);
+        if (defaultConfig == null) {
+            plugin.error("Не удалось загрузить дефолтный конфиг: " + resourcePath);
+            return false;
+        }
+
+        String defaultVersion = defaultConfig.getString("config-version", "1.0");
+        String userVersion = "0";
+        if (targetFile.exists()) {
+            FileConfiguration userConfig = YamlConfiguration.loadConfiguration(targetFile);
+            userVersion = userConfig.getString("config-version", "0");
+            if (compareVersions(userVersion, defaultVersion) >= 0) {
+                return false;
+            }
+            createBackup(targetFile);
+        }
+
+        if (!copyResourceToFile(resourcePath, targetFile)) {
+            plugin.error("Не удалось полностью обновить файл " + targetFile.getName() + " из " + resourcePath);
+            return false;
+        }
+
+        plugin.log("Справочный файл " + targetFile.getName() + " полностью обновлён до версии " + defaultVersion
+                + " (было: " + userVersion + ")");
+        return true;
     }
 
     public boolean updateMenu(File targetFile, String resourcePath, List<String> forceUpdatePaths) {
@@ -59,44 +89,75 @@ public class ConfigUpdater {
 
         if (defaultConfig == null) return false;
 
-        int userVersion = getVersion(userConfig);
-        int defaultVersion = getVersion(defaultConfig);
+        String defaultVersion = defaultConfig.getString("config-version", "1.0");
+        String userVersion = userConfig.getString("config-version", "1.0");
+        boolean versionOutdated = compareVersions(userVersion, defaultVersion) < 0;
+        boolean hasForce = forceUpdatePaths != null && !forceUpdatePaths.isEmpty();
 
-        if (userVersion >= defaultVersion && (forceUpdatePaths == null || forceUpdatePaths.isEmpty())) {
+        if (!versionOutdated && !hasForce) {
             return false;
         }
 
-        boolean changed = mergeMissingKeys(userConfig, defaultConfig, "");
-
-        if (forceUpdatePaths != null) {
-            for (String path : forceUpdatePaths) {
-                if (defaultConfig.contains(path)) {
-                    userConfig.set(path, defaultConfig.get(path));
-                    changed = true;
+        boolean changed = false;
+        if (versionOutdated) {
+            changed = mergeMissingKeys(userConfig, defaultConfig, "");
+            if (hasForce) {
+                for (String path : forceUpdatePaths) {
+                    if (defaultConfig.contains(path) && !userConfig.contains(path)) {
+                        userConfig.set(path, defaultConfig.get(path));
+                        changed = true;
+                    } else if (defaultConfig.isConfigurationSection(path)) {
+                        changed |= mergeMissingKeys(userConfig, defaultConfig, path);
+                    }
                 }
             }
         }
 
+        if (versionOutdated) {
+            userConfig.set("config-version", defaultVersion);
+        }
+
+        if (!changed && !versionOutdated) {
+            return false;
+        }
+
         if (changed) {
             createBackup(targetFile);
-        }
-        userConfig.set("config-version", defaultConfig.getString("config-version", "1.0"));
-        if (changed) {
             saveConfig(targetFile, userConfig, "Меню " + targetFile.getName() + " обновлено");
         } else {
-            saveConfig(targetFile, userConfig, "Версия меню " + targetFile.getName() + " обновлена до " + defaultConfig.getString("config-version", "1.0"));
+            saveConfig(targetFile, userConfig, "Версия меню " + targetFile.getName() + " обновлена до " + defaultVersion);
         }
-
-        return changed;
+        return changed || versionOutdated;
     }
 
-    private int getVersion(FileConfiguration config) {
-        String versionStr = config.getString("config-version", "1.0");
-        try {
-            return (int) (Double.parseDouble(versionStr) * 10);
-        } catch (Exception e) {
-            return 10;
+    private int compareVersions(String left, String right) {
+        int[] a = parseVersion(left);
+        int[] b = parseVersion(right);
+        int len = Math.max(a.length, b.length);
+        for (int i = 0; i < len; i++) {
+            int av = i < a.length ? a[i] : 0;
+            int bv = i < b.length ? b[i] : 0;
+            if (av != bv) {
+                return Integer.compare(av, bv);
+            }
         }
+        return 0;
+    }
+
+    private int[] parseVersion(String version) {
+        if (version == null || version.isBlank()) {
+            return new int[]{1, 0};
+        }
+        String[] parts = version.trim().split("\\.");
+        int[] out = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            try {
+                out[i] = Integer.parseInt(parts[i].replaceAll("[^0-9].*$", ""));
+            } catch (Exception e) {
+                out[i] = 0;
+            }
+        }
+        return out;
     }
 
     private boolean mergeMissingKeys(FileConfiguration user, FileConfiguration defaults, String path) {
@@ -109,7 +170,7 @@ public class ConfigUpdater {
             String fullKey = path.isEmpty() ? key : path + "." + key;
 
             if (!user.contains(fullKey)) {
-                user.set(fullKey, defaultSection.get(key));
+                user.set(fullKey, defaults.get(fullKey));
                 changed = true;
                 continue;
             }
@@ -117,6 +178,7 @@ public class ConfigUpdater {
             if (defaultSection.isConfigurationSection(key)) {
                 if (!user.isConfigurationSection(fullKey)) {
                     user.createSection(fullKey);
+                    changed = true;
                 }
                 changed |= mergeMissingKeys(user, defaults, fullKey);
             }
@@ -130,6 +192,21 @@ public class ConfigUpdater {
             return YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private boolean copyResourceToFile(String resourcePath, File targetFile) {
+        try (InputStream in = plugin.getResource(resourcePath)) {
+            if (in == null) return false;
+            File parent = targetFile.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (Exception e) {
+            plugin.error("Ошибка копирования ресурса " + resourcePath + ": " + e.getMessage());
+            return false;
         }
     }
 

@@ -6,7 +6,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.CacheKeys;
-import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,7 @@ public class LegacyMinecraftPlatform implements HologramPlatform {
             for (int i = safeLines.size() - 1; i >= 0; i--) {
                 final String currentLine = safeLines.get(i);
                 ArmorStand stand = location.getWorld().spawn(spawnLoc, ArmorStand.class, armorStand -> {
-                    armorStand.setCustomName(HexColors.translate(currentLine));
+                    armorStand.setCustomName(currentLine);
                     armorStand.setCustomNameVisible(true);
                     armorStand.setVisible(false);
                     armorStand.setGravity(false);
@@ -83,7 +82,7 @@ public class LegacyMinecraftPlatform implements HologramPlatform {
                 for (int i = 0; i < safeLines.size(); i++) {
                     Entity entity = entities.get(i);
                     if (entity instanceof ArmorStand && !entity.isDead()) {
-                        entity.setCustomName(HexColors.translate(safeLines.get(i)));
+                        entity.setCustomName(safeLines.get(i));
                     }
                 }
             } else {

@@ -1,7 +1,9 @@
 package org.gw.cachesmanager.listeners;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -14,6 +16,9 @@ import org.gw.cachesmanager.managers.MenuManager;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CacheModeListener implements Listener {
     private final CachesManager plugin;
@@ -23,6 +28,7 @@ public class CacheModeListener implements Listener {
 
     private final ChatModeRegistry modeRegistry = new ChatModeRegistry();
     private final ChatSessionManager sessionManager;
+    private final Set<UUID> chatInputClaimed = ConcurrentHashMap.newKeySet();
 
     public CacheModeListener(CachesManager plugin, CacheManager cacheManager, ConfigManager configManager) {
         this.plugin = plugin;
@@ -42,6 +48,32 @@ public class CacheModeListener implements Listener {
         modeRegistry.register(new HologramOffsetModeHandler(cacheManager, configManager, "Z"));
         modeRegistry.register(new SelectionModeHandler(cacheManager, configManager));
         modeRegistry.register(new ReplaceBlockModeHandler(cacheManager, configManager));
+
+        if (isModernChatEventAvailable()) {
+            plugin.getServer().getPluginManager().registerEvents(new ModernChatListener(), plugin);
+        }
+    }
+
+    private static boolean isModernChatEventAvailable() {
+        try {
+            Class.forName("io.papermc.paper.event.player.AsyncChatEvent");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    private boolean isInEditSession(Player player) {
+        return sessionManager.getSession(player) != null;
+    }
+
+    private boolean claimChatInput(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!chatInputClaimed.add(uuid)) {
+            return false;
+        }
+        plugin.getServer().getScheduler().runTask(plugin, () -> chatInputClaimed.remove(uuid));
+        return true;
     }
 
     public void setMenuManager(MenuManager menuManager) {
@@ -193,15 +225,68 @@ public class CacheModeListener implements Listener {
         return true;
     }
 
-    @EventHandler
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+    public void onPlayerChatLowest(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         ChatEditSession session = sessionManager.getSession(player);
         if (session == null) return;
 
-        event.setCancelled(true);
         String message = event.getMessage();
+        suppressLegacyChat(event);
+        if (claimChatInput(player)) {
+            handleChatInput(player, session, message);
+        }
+    }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onPlayerChatHighest(AsyncPlayerChatEvent event) {
+        if (!isInEditSession(event.getPlayer())) return;
+        suppressLegacyChat(event);
+    }
+
+    private void suppressLegacyChat(AsyncPlayerChatEvent event) {
+        event.setCancelled(true);
+        try {
+            event.getRecipients().clear();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private final class ModernChatListener implements Listener {
+        @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+        public void onPlayerChatLowest(io.papermc.paper.event.player.AsyncChatEvent event) {
+            Player player = event.getPlayer();
+            ChatEditSession session = sessionManager.getSession(player);
+            if (session == null) return;
+
+            String message = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message());
+            suppressModernChat(event);
+            if (claimChatInput(player)) {
+                handleChatInput(player, session, message);
+            }
+        }
+
+        @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+        public void onPlayerChatHighest(io.papermc.paper.event.player.AsyncChatEvent event) {
+            if (!isInEditSession(event.getPlayer())) return;
+            suppressModernChat(event);
+        }
+
+        private void suppressModernChat(io.papermc.paper.event.player.AsyncChatEvent event) {
+            event.setCancelled(true);
+            try {
+                event.viewers().clear();
+            } catch (Throwable ignored) {
+            }
+            try {
+                event.renderer((source, sourceDisplayName, message, viewer) -> Component.empty());
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private void handleChatInput(Player player, ChatEditSession session, String message) {
         if (message.equalsIgnoreCase("cancel")) {
             new BukkitRunnable() {
                 @Override

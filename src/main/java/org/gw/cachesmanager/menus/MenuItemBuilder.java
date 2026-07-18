@@ -13,6 +13,7 @@ import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.caches.Cache;
 import org.gw.cachesmanager.managers.CacheManager;
 import org.gw.cachesmanager.utils.HexColors;
+import org.gw.cachesmanager.utils.MaterialCompat;
 import org.gw.cachesmanager.utils.PlaceholderAPIHook;
 
 import java.lang.reflect.Field;
@@ -85,9 +86,8 @@ public class MenuItemBuilder {
         if (staticItemCache.containsKey(cacheKey)) {
             return staticItemCache.get(cacheKey).clone();
         }
-        String matStr = section.getString("material", "STONE").toUpperCase();
-        Material mat = Material.matchMaterial(matStr);
-        if (mat == null) mat = Material.STONE;
+        String matStr = section.getString("material", "STONE");
+        Material mat = MaterialCompat.match(matStr, Material.STONE);
         ItemStack item = new ItemStack(mat, section.getInt("amount", 1));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) {

@@ -3,9 +3,10 @@ package org.gw.cachesmanager.commands;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.gw.cachesmanager.CachesManager;
+import org.gw.cachesmanager.managers.ItemManager;
 
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class GiveKeyCommand extends AbstractSubCommand {
@@ -36,60 +37,26 @@ public class GiveKeyCommand extends AbstractSubCommand {
             return true;
         }
 
-        String targetName = null;
-        Player target = null;
-
-        String lastArg = args[args.length - 1];
-        Player testPlayer = plugin.getServer().getPlayerExact(lastArg);
-
-        int endOffset = 0;
-        if (testPlayer != null) {
-            target = testPlayer;
-            targetName = testPlayer.getName();
-            endOffset = 1;
-        } else {
-            if (sender instanceof Player) {
-                target = (Player) sender;
-                targetName = target.getName();
-            } else {
-                if (args.length > 2) {
-                    String possiblePlayer = args[args.length - 1];
-                    String possibleAmount = args[args.length - 2];
-                    if (possibleAmount.matches("\\d+")) {
-                        targetName = possiblePlayer;
-                    }
-                }
-                if (targetName == null) {
-                    targetName = args[args.length - 1];
-                }
-            }
-        }
-
-        int amount = 1;
-        int amountIndex = args.length - 1 - endOffset;
-
-        if (amountIndex >= 1) {
-            String amountStr = args[amountIndex];
-            if (amountStr.matches("\\d+")) {
-                amount = Integer.parseInt(amountStr);
-                if (amount <= 0) amount = 1;
-            } else {
-                if (endOffset == 1 || (endOffset == 0 && args.length > 2 && !plugin.getCacheManager().getCaches().containsKey(String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim()))) {
-                    Map<String, String> ph = createPlaceholders();
-                    plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount", ph);
-                    return true;
-                }
-                amountIndex = args.length - 1;
-            }
-        } else {
-            amountIndex = args.length - 1;
-        }
-
+        List<String> cacheNames = plugin.getCacheManager().getCacheNames();
+        int nameEnd = CacheCommandArgs.findFullNameEnd(cacheNames, args, 1, args.length);
         String cacheName;
-        if (amountIndex == args.length - 1 - endOffset && args[amountIndex].matches("\\d+")) {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, amountIndex)).trim();
+        int cursor;
+
+        if (nameEnd != -1) {
+            cacheName = CacheCommandArgs.resolveExistingName(cacheNames, CacheCommandArgs.join(args, 1, nameEnd));
+            cursor = nameEnd;
         } else {
-            cacheName = String.join(" ", Arrays.copyOfRange(args, 1, args.length - endOffset)).trim();
+            int end = args.length;
+            Player maybePlayer = plugin.getServer().getPlayerExact(args[end - 1]);
+            if (maybePlayer != null && end - 1 > 1) {
+                end--;
+            }
+            if (end - 1 > 1 && args[end - 1].matches("\\d+")) {
+                end--;
+            }
+            cacheName = CacheCommandArgs.join(args, 1, end);
+            nameEnd = end;
+            cursor = end;
         }
 
         cacheName = plugin.getConfigManager().sanitizeCacheName(cacheName);
@@ -106,9 +73,36 @@ public class GiveKeyCommand extends AbstractSubCommand {
             return true;
         }
 
-        if (target == null) {
-            ph.put("player", targetName != null ? targetName : "Неизвестно");
-            plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-player", ph);
+        int amount = 1;
+        Player target = null;
+
+        if (cursor < args.length && args[cursor].matches("\\d+")) {
+            try {
+                amount = Integer.parseInt(args[cursor]);
+            } catch (NumberFormatException e) {
+                plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount", ph);
+                return true;
+            }
+            if (amount <= 0) {
+                plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-amount", ph);
+                return true;
+            }
+            amount = Math.min(amount, ItemManager.MAX_KEYS_PER_GIVE);
+            cursor++;
+        }
+
+        if (cursor < args.length) {
+            target = plugin.getServer().getPlayerExact(args[cursor]);
+            if (target == null) {
+                ph.put("player", args[cursor]);
+                plugin.getConfigManager().executeActions(sender instanceof Player ? (Player) sender : null, "errors.invalid-player", ph);
+                return true;
+            }
+        } else if (sender instanceof Player) {
+            target = (Player) sender;
+        } else {
+            ph.put("player", "Неизвестно");
+            plugin.getConfigManager().executeActions(null, "errors.invalid-player", ph);
             return true;
         }
 

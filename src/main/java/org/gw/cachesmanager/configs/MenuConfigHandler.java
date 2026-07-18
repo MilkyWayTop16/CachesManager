@@ -38,9 +38,12 @@ public class MenuConfigHandler {
         ConfigUpdater updater = new ConfigUpdater(plugin);
         updater.update(new File(plugin.getDataFolder(), "animations.yml"), "animations.yml");
 
+        File exampleMenu = new File(menusFolder, "example-menu.yml");
+        updater.replaceFromResourceIfOutdated(exampleMenu, "menus/example-menu.yml");
+
         String[] menuFiles = {
             "global-menu.yml", "loot-menu.yml", "chance-menu.yml", "hologram-menu.yml",
-            "example-menu.yml", "history-menu.yml", "key-menu.yml"
+            "history-menu.yml", "key-menu.yml"
         };
 
         for (String menu : menuFiles) {

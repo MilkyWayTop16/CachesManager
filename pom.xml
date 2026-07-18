@@ -6,7 +6,7 @@
 
     <groupId>org.gw</groupId>
     <artifactId>CachesManager</artifactId>
-    <version>1.4.2</version>
+    <version>1.5</version>
     <packaging>jar</packaging>
 
     <name>CachesManager</name>
@@ -136,6 +136,12 @@
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-text-serializer-gson</artifactId>
+            <version>4.14.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.kyori</groupId>
+            <artifactId>adventure-text-serializer-plain</artifactId>
             <version>4.14.0</version>
             <scope>provided</scope>
         </dependency>

@@ -8,9 +8,8 @@ import org.bukkit.entity.Display;
 import org.bukkit.persistence.PersistentDataType;
 import org.gw.cachesmanager.CachesManager;
 import org.gw.cachesmanager.utils.CacheKeys;
-import org.gw.cachesmanager.utils.HexColors;
 
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.gw.cachesmanager.utils.HexColors;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +52,7 @@ public class ModernMinecraftPlatform implements HologramPlatform {
             if (useTextDisplay) {
                 String fullText = (lines == null || lines.isEmpty()) ? "" : String.join("\n", lines);
                 TextDisplay display = location.getWorld().spawn(location, TextDisplay.class, textDisplay -> {
-                    textDisplay.text(LegacyComponentSerializer.legacySection().deserialize(HexColors.translate(fullText)));
+                    textDisplay.text(HexColors.fromSection(fullText));
                     textDisplay.setBillboard(Display.Billboard.CENTER);
                     textDisplay.setPersistent(false);
                     textDisplay.getPersistentDataContainer().set(CacheKeys.HOLOGRAM_ID.getNamespacedKey(), PersistentDataType.STRING, id);
@@ -66,7 +65,7 @@ public class ModernMinecraftPlatform implements HologramPlatform {
                 for (int i = safeLines.size() - 1; i >= 0; i--) {
                     final String currentLine = safeLines.get(i);
                     ArmorStand stand = location.getWorld().spawn(spawnLoc, ArmorStand.class, armorStand -> {
-                        armorStand.setCustomName(HexColors.translate(currentLine));
+                        armorStand.setCustomName(currentLine);
                         armorStand.setCustomNameVisible(true);
                         armorStand.setVisible(false);
                         armorStand.setGravity(false);
@@ -107,7 +106,7 @@ public class ModernMinecraftPlatform implements HologramPlatform {
                 Entity entity = entities.get(0);
                 if (entity instanceof TextDisplay && !entity.isDead()) {
                     String fullText = (lines == null || lines.isEmpty()) ? "" : String.join("\n", lines);
-                    ((TextDisplay) entity).text(LegacyComponentSerializer.legacySection().deserialize(HexColors.translate(fullText)));
+                    ((TextDisplay) entity).text(HexColors.fromSection(fullText));
                 }
             } else {
                 List<String> safeLines = (lines == null) ? new ArrayList<>() : lines;
@@ -115,7 +114,7 @@ public class ModernMinecraftPlatform implements HologramPlatform {
                     for (int i = 0; i < safeLines.size(); i++) {
                         Entity entity = entities.get(i);
                         if (entity instanceof ArmorStand && !entity.isDead()) {
-                            entity.setCustomName(HexColors.translate(safeLines.get(i)));
+                            entity.setCustomName(safeLines.get(i));
                         }
                     }
                 } else {
